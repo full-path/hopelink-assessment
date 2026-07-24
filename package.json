@@ -1,0 +1,31 @@
+{
+  "name": "find-a-ride-unified-intake-explorer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Unified intake question explorer for Hopelink's Find a Ride pilot agencies.",
+  "scripts": {
+    "build-data": "tsx scripts/build-data.ts",
+    "dev": "npm run build-data && vite",
+    "build": "npm run build-data && tsc -p tsconfig.app.json --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.5",
+    "@types/papaparse": "^5.3.15",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "papaparse": "^5.4.1",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.1",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,858 @@
+{
+  "agencies": [
+    {
+      "id": "hyde-shuttle",
+      "displayName": "Hyde Shuttle",
+      "aliases": [
+        "Hyde Shuttle"
+      ]
+    },
+    {
+      "id": "northshore-senior-center",
+      "displayName": "Northshore Senior Center",
+      "aliases": [
+        "Northshore Senior Center",
+        "Northshore senior Center"
+      ]
+    },
+    {
+      "id": "beyond-the-borders",
+      "displayName": "Beyond the Borders",
+      "aliases": [
+        "Beyond the Borders",
+        "Beyond the borders"
+      ]
+    },
+    {
+      "id": "access-paratransit",
+      "displayName": "Access Paratransit",
+      "aliases": [
+        "Access Paratransit",
+        "Access paratransit"
+      ]
+    },
+    {
+      "id": "metro-transit-instruction",
+      "displayName": "Metro Transit Instruction",
+      "aliases": [
+        "Metro Transit Instruction"
+      ]
+    },
+    {
+      "id": "orca",
+      "displayName": "ORCA",
+      "aliases": [
+        "ORCA"
+      ]
+    },
+    {
+      "id": "orca-senior",
+      "displayName": "ORCA (Senior)",
+      "aliases": [
+        "ORCA (Senior)"
+      ]
+    },
+    {
+      "id": "orca-disabled",
+      "displayName": "ORCA (Disabled)",
+      "aliases": [
+        "ORCA (Disabled)",
+        "ORCA (disabled)"
+      ]
+    },
+    {
+      "id": "orca-lift",
+      "displayName": "ORCA LIFT",
+      "aliases": [
+        "ORCA LIFT"
+      ]
+    },
+    {
+      "id": "homage-tap",
+      "displayName": "Homage TAP",
+      "aliases": [
+        "Homage TAP",
+        "Homage Tap"
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "first-and-last",
+      "text": "First and last",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "required"
+        },
+        {
+          "agencyId": "metro-transit-instruction",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "phone",
+      "text": "Phone",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "required"
+        },
+        {
+          "agencyId": "metro-transit-instruction",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "metro-transit-instruction",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "dataQualityNote": "ORCA is listed under both Providers Required and Providers Optional for this question — a direct contradiction as stated. Not altered; requires human resolution."
+    },
+    {
+      "id": "email",
+      "text": "Email",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca-senior",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca-disabled",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "optional"
+        },
+        {
+          "agencyId": "metro-transit-instruction",
+          "level": "optional"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "metro-transit-instruction",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "dataQualityNote": "Self-Attestation cell originally listed 'ORCA' twice (one instance with trailing whitespace); duplicate removed. Bare 'ORCA' appears in Self-Attestation but has no corresponding entry in Required or Optional for this question — completeness gap, not resolved here."
+    },
+    {
+      "id": "home-address",
+      "text": "Home address",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca-disabled",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca-senior",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "unresolvedLinks": [
+        "Mailing address same as home address?"
+      ],
+      "dataQualityNote": "Bare 'ORCA' appears in Self-Attestation but not in Required or Optional for this question — same completeness gap as Email row, not resolved here."
+    },
+    {
+      "id": "mailing-address",
+      "text": "Mailing address",
+      "requirements": [
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca-senior",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "required"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca-disabled",
+          "level": "optional"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "unresolvedLinks": [
+        "Mailing address same as home address?"
+      ],
+      "dataQualityNote": "Bare 'ORCA' in Self-Attestation not present in Required or Optional for this question — completeness gap, not resolved here."
+    },
+    {
+      "id": "accessibility-needs",
+      "text": "Accessibility needs",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "unresolvedLinks": [
+        "Which provider capabilities are needed"
+      ],
+      "dataQualityNote": "Downstream reference does not match any Question row in this sheet. Typo 'providercapabilities' corrected to 'provider capabilities'; link itself remains unresolved."
+    },
+    {
+      "id": "gender",
+      "text": "Gender",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "optional"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "race",
+      "text": "Race",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [
+        "ethnicity"
+      ]
+    },
+    {
+      "id": "ethnicity",
+      "text": "Ethnicity",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [
+        "race"
+      ],
+      "downstreamRefs": []
+    },
+    {
+      "id": "primary-language",
+      "text": "Primary language",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "metro-transit-instruction",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "metro-transit-instruction",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "military-service",
+      "text": "Military service",
+      "requirements": [
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "optional"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "income",
+      "text": "Income",
+      "requirements": [
+        {
+          "agencyId": "homage-tap",
+          "level": "required"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca",
+          "level": "proof_required",
+          "proofDetail": "ProviderOne number OR EBT number OR DSHS Client ID number"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "dataQualityNote": "Proof entry references bare 'ORCA', but only 'ORCA LIFT' appears under Providers Required for this question — likely intended to reference ORCA LIFT specifically. Not changed; flagged for confirmation."
+    },
+    {
+      "id": "age",
+      "text": "Age",
+      "requirements": [
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca",
+          "level": "proof_required",
+          "proofDetail": "Photo ID"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "disabled",
+      "text": "Disabled",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "required"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca",
+          "level": "proof_required",
+          "proofDetail": "State or federal documentation"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "proof_required",
+          "proofDetail": "signed note from doctor and in-person evaluation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [
+        "is-the-disability-temporary-or-permanent"
+      ],
+      "dataQualityNote": "Downstream reference corrected from 'Temporary or permanent disability?' to match the exact text of the corresponding Question row."
+    },
+    {
+      "id": "is-the-disability-temporary-or-permanent",
+      "text": "Is the disability temporary or permanent",
+      "requirements": [
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca",
+          "level": "proof_required",
+          "proofDetail": "State or federal documentation"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "proof_required",
+          "proofDetail": "signed note from doctor and in-person evaluation"
+        }
+      ],
+      "upstreamRefs": [
+        "disabled"
+      ],
+      "downstreamRefs": [],
+      "dataQualityNote": "Upstream cell originally embedded an explanatory clause ('for ORCA, whether disability is temporary or permanent is determined by the document you upload'); link simplified to 'Disabled' and the explanation is preserved here rather than discarded. Separately: ORCA and Access Paratransit appear in Burden of Proof for this question but not in Required or Optional — completeness gap, not resolved here."
+    },
+    {
+      "id": "do-you-need-transportation-to-dialysis",
+      "text": "Do you need transportation to dialysis?",
+      "requirements": [
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "are-you-registered-with-pierce-shuttle",
+      "text": "Are you registered with Pierce SHUTTLE",
+      "requirements": [
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "do-you-have-a-providerone-number",
+      "text": "Do you have a ProviderOne number",
+      "requirements": [
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "proof_required",
+          "proofDetail": "Type number into textbox"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "dataQualityNote": "Homage TAP appears under both Optional and Burden of Proof. The described 'proof' (typing a number into a textbox) is applicant self-report, not third-party documentary evidence, and arguably belongs under Self-Attestation. Not moved; flagged for confirmation."
+    },
+    {
+      "id": "are-you-currently-homeless",
+      "text": "Are you currently homeless?",
+      "requirements": [
+        {
+          "agencyId": "orca-lift",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [
+        "home-address"
+      ],
+      "downstreamRefs": [
+        "mailing-address"
+      ],
+      "dataQualityNote": "Upstream/Downstream casing corrected to match exact Question-row text ('Home Address'->'Home address', 'Mailing Address'->'Mailing address')."
+    },
+    {
+      "id": "preferred-method-of-contact",
+      "text": "Preferred method of contact?",
+      "requirements": [
+        {
+          "agencyId": "orca-lift",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca-disabled",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "metro-transit-instruction",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "orca-disabled",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "metro-transit-instruction",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "may-we-leave-a-message",
+      "text": "May we leave a message?",
+      "requirements": [
+        {
+          "agencyId": "orca-lift",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca-disabled",
+          "level": "required"
+        }
+      ],
+      "upstreamRefs": [
+        "preferred-method-of-contact"
+      ],
+      "downstreamRefs": [],
+      "dataQualityNote": "Upstream reference corrected from 'Preferred Method of Contact' to match exact Question-row text, including trailing '?'."
+    }
+  ]
+}
