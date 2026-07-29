@@ -34,8 +34,10 @@ Source file: `Eligibility_Questions.csv`. Columns as shipped:
 | `Upstream Q's` | Free-text reference to a question that must be answered before this one is shown |
 | `Downstream Q's` | Free-text reference to a question this one gates |
 
-This file is the **input to a build-time preprocessing step**, not something the browser parses
-directly. See Section 4.
+This file is the input to a normalization step (see Section 4) that runs in two places: at build
+time to produce the committed default dataset, and in the browser when a user uploads a
+replacement CSV for a session-only preview (Section 5, requirement 6). Both paths go through the
+same shared module — the UI never parses raw CSV cells itself.
 
 ## 3. Data Anomalies Confirmed in Source (Must Be Resolved Before Ingestion)
 
@@ -58,8 +60,9 @@ application parses the raw cells directly at runtime:
   whitespace (e.g. `"ORCA "`).
 
 None of these should be handled with defensive parsing logic scattered through the application.
-They are resolved once, at build time, in a single normalization script, producing a clean typed
-JSON artifact that the application consumes. Application code should never see a raw CSV row.
+They are resolved once, in a single shared normalization module (`src/data/normalize.ts`) used by
+both the build-time script and the in-browser upload preview, producing clean typed data that the
+application consumes. UI code should never see a raw CSV row.
 
 ## 4. Data Model (Normalized Output of Preprocessing)
 
@@ -105,6 +108,12 @@ than displaying it as unresolved.
 5. A summary view answering the core stakeholder question directly: for a given candidate
    "unified" question, which agencies already ask it in compatible form, and which would need to
    change practice (different requirement level or added proof burden).
+6. Upload of a replacement CSV (same column contract as the source file) that the UI re-renders
+   from immediately. The upload is a **session-only preview**: it is parsed entirely in the
+   browser, held in memory, never sent anywhere, and discarded on reload. A malformed upload
+   (unknown agency, missing columns, parse errors) surfaces the error and leaves the currently
+   displayed dataset untouched. The committed CSV remains the source of record; making an
+   uploaded file permanent still means editing `/data` and rebuilding (Section 8).
 
 ## 6. Non-Functional Requirements / Code Quality Standards
 
@@ -113,9 +122,10 @@ than displaying it as unresolved.
   detail panels — plain TypeScript + minimal DOM, or a lightweight framework at most. Do not
   introduce state-management libraries, routing libraries, or a component framework to solve a
   problem of this size.
-- CSV → JSON normalization lives in one script (`scripts/build-data.ts`), independently testable,
-  independent of any UI code.
-- Unit tests for the normalization script specifically: agency alias resolution, proof-field
+- CSV → JSON normalization lives in one shared module (`src/data/normalize.ts`), independently
+  testable, independent of any UI code. `scripts/build-data.ts` is a thin CLI wrapper around it;
+  the browser upload path calls the same functions.
+- Unit tests for the normalization module specifically: agency alias resolution, proof-field
   splitting, unresolved-link detection. This is the part of the system most likely to silently
   produce wrong output, and the part least likely to be caught by visual inspection.
 - ESLint + Prettier, checked in.
@@ -129,9 +139,11 @@ than displaying it as unresolved.
 
 - Build tool: Vite.
 - Language: TypeScript.
-- CSV parsing: `papaparse`, used only inside the build-time normalization script — never shipped
-  to the client bundle.
+- CSV parsing: `papaparse`, used only inside the shared normalization module. Since that module
+  also powers the in-browser upload preview (Section 5, requirement 6), papaparse ships in the
+  client bundle — it is a runtime dependency, not a dev-only one.
 - No backend. No runtime database. Output is static HTML/CSS/JS plus one generated JSON file.
+  Uploaded CSVs are processed client-side only and never leave the browser.
 - UI: plain TypeScript + DOM, or Preact if component structure proves warranted during
   implementation. Decision deferred to implementation time based on actual complexity, not
   assumed upfront.
@@ -142,19 +154,22 @@ than displaying it as unresolved.
 2. `scripts/build-data.ts` runs at build time, outputs `/src/data/questions.json`.
 3. Vite builds static assets.
 4. GitHub Actions workflow builds on push to `main` and deploys to GitHub Pages.
-5. Updating the intake comparison going forward means editing the CSV and re-running the build —
-   no live editing UI. Building a live-editing interface is explicitly out of scope (Section 10)
-   unless a future requirement changes this.
+5. Updating the intake comparison going forward means editing the CSV and re-running the build.
+   The in-app CSV upload (Section 5, requirement 6) is a session-only preview for trying a
+   candidate revision — it does not persist anything; permanent changes still go through this
+   pipeline. Building a live-editing interface remains out of scope (Section 10).
 
 ## 9. Repository Structure
 
 ```
-/data/Eligibility_Questions.csv       # source of record, hand-edited
-/scripts/build-data.ts                # normalization: CSV -> questions.json
-/scripts/build-data.test.ts           # tests for normalization logic
-/src/data/questions.json              # generated, gitignored or committed — decide at implementation
+/data/eligibility-questions.csv       # source of record, hand-edited
+/scripts/build-data.ts                # thin CLI: reads CSV, writes questions.json via the shared module
+/src/data/normalize.ts                # shared normalization logic: CSV text -> NormalizedData
+/src/data/normalize.test.ts           # tests for normalization logic
+/src/data/questions.json              # generated, committed
+/src/data/types.ts                    # the data contract
 /src/main.ts
-/src/components/                      # only if warranted
+/src/components/
 /src/styles/
 /.github/workflows/deploy.yml
 README.md
@@ -163,7 +178,9 @@ CLAUDE.md
 
 ## 10. Out of Scope
 
-- Live/runtime CSV upload by end users.
+- Persisting an uploaded CSV. Upload exists (Section 5, requirement 6) but is a session-only,
+  in-browser preview — no server-side storage, no write-back to the repo, no sharing of an
+  uploaded dataset between users or sessions.
 - Authentication or per-agency accounts.
 - Persisting any rider or PII data — this tool operates on aggregate policy metadata only, never
   individual rider records. It has no relationship to the Vault, Dashboard, or Workflow Tracker

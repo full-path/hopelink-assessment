@@ -18,5 +18,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["scripts", "vite.config.ts"]
+  "include": ["scripts", "src/**/*.test.ts", "vite.config.ts"]
 }

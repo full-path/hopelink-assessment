@@ -6,7 +6,7 @@ import {
   parseCsv,
   resolveAgencyId,
   slugify,
-} from "./build-data";
+} from "./normalize";
 
 describe("resolveAgencyId", () => {
   it("resolves an exact canonical name", () => {
@@ -175,5 +175,10 @@ describe("parseCsv", () => {
     const rows = parseCsv(csv);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.Question).toBe("Phone");
+  });
+
+  it("rejects a CSV whose header lacks the expected columns, naming the missing ones", () => {
+    const csv = ["Question,Providers Required", "Phone,Hyde Shuttle"].join("\n");
+    expect(() => parseCsv(csv)).toThrow(/missing expected column.*"Providers Optional"/s);
   });
 });
