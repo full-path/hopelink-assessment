@@ -1,0 +1,13 @@
+Question,Capability,Note
+Accessibility needs,Wheelchair Accessible,"'Accessibility needs' is a free-text question; these six capability columns are the specific things it is understood to be asking about. The source data does not itemize them, so this breakdown is an editorial claim, not a transcription."
+Accessibility needs,Power Wheelchair Accessible,"See note on the Wheelchair Accessible row. Worth attention: this capability varies between providers but no agency asks about it specifically."
+Accessibility needs,Walker (Folding),See note on the Wheelchair Accessible row.
+Accessibility needs,Walker (nonfolding),See note on the Wheelchair Accessible row.
+Accessibility needs,Lift,See note on the Wheelchair Accessible row.
+Accessibility needs,Ramp,See note on the Wheelchair Accessible row.
+Do you require a service animal,Allows service animals,Direct one-to-one correspondence between the question and the capability column.
+Do you need a companion,Allows for companions,"Direct correspondence. Note that Hyde Shuttle's answer carries a limit ('1') that the canonical yes/no value does not capture — read the qualifier alongside it."
+Do you require portable Oxygen,Portable Oxygen,Direct one-to-one correspondence between the question and the capability column.
+Do you need an interpreter,Interpretation Support,Direct one-to-one correspondence between the question and the capability column.
+Can you get in and out of a vehicle on your own?,Door-to-door,"The question distinguishes riders who need door-to-door assistance from those a curb-to-curb service can carry, so it maps to both service-model columns."
+Can you get in and out of a vehicle on your own?,Curb-to-curb,See note on the Door-to-door row.

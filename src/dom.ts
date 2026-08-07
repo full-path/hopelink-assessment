@@ -12,10 +12,9 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   const el = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
     if (value === undefined || value === false) continue;
-    if (key === "onClick") {
-      el.addEventListener("click", value as EventListener);
-    } else if (key === "onChange") {
-      el.addEventListener("change", value as EventListener);
+    if (key.startsWith("on") && typeof value === "function") {
+      // onClick -> "click", onKeyDown -> "keydown".
+      el.addEventListener(key.slice(2).toLowerCase(), value);
     } else if (key === "className") {
       el.setAttribute("class", String(value));
     } else if (value === true) {

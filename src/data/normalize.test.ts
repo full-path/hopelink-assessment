@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import {
-  normalize,
-  parseAgencyList,
-  parseBurdenOfProof,
-  parseCsv,
-  resolveAgencyId,
-  slugify,
-} from "./normalize";
+import { normalize, parseAgencyList, parseBurdenOfProof, parseCsv } from "./normalize";
+import { resolveAgencyId } from "./agencies";
+import { slugify } from "./text";
 
 describe("resolveAgencyId", () => {
   it("resolves an exact canonical name", () => {
     expect(resolveAgencyId("Hyde Shuttle")).toBe("hyde-shuttle");
+  });
+
+  it("resolves the capabilities sheet's short name for Sound Generations VTS", () => {
+    expect(resolveAgencyId("SG VTS")).toBe("sound-generations-vts");
+    expect(resolveAgencyId("Sound Generations VTS")).toBe("sound-generations-vts");
   });
 
   it("resolves known casing variants to the same canonical id", () => {
@@ -132,6 +132,47 @@ describe("normalize", () => {
     const question = data.questions[0];
     expect(question?.downstreamRefs).toEqual([]);
     expect(question?.unresolvedLinks).toEqual(["Mailing address same as home address?"]);
+  });
+
+  it("resolves every reference in a semicolon-delimited link cell", () => {
+    const rows = [
+      { ...baseRow, Question: "Phone" },
+      { ...baseRow, Question: "Email" },
+      { ...baseRow, Question: "Preferred method of contact?", "Upstream Q's": "Phone; Email" },
+    ];
+    const data = normalize(rows);
+    const contact = data.questions.find((q) => q.id === "preferred-method-of-contact");
+    expect(contact?.upstreamRefs).toEqual(["phone", "email"]);
+    expect(contact?.unresolvedLinks).toBeUndefined();
+  });
+
+  it("keeps resolved and unresolved references separate within one link cell", () => {
+    const rows = [
+      { ...baseRow, Question: "Accessibility needs" },
+      {
+        ...baseRow,
+        Question: "Do you need an interpreter",
+        "Upstream Q's": "Accessibility needs; Preferred Language",
+      },
+    ];
+    const data = normalize(rows);
+    const interpreter = data.questions.find((q) => q.id === "do-you-need-an-interpreter");
+    expect(interpreter?.upstreamRefs).toEqual(["accessibility-needs"]);
+    expect(interpreter?.unresolvedLinks).toEqual(["Preferred Language"]);
+  });
+
+  it("does not split a link cell on commas, since question text can contain them", () => {
+    const rows = [
+      { ...baseRow, Question: "Special directions (gate code, etc)" },
+      {
+        ...baseRow,
+        Question: "Accessibility needs",
+        "Downstream Q's": "Special directions (gate code, etc)",
+      },
+    ];
+    const data = normalize(rows);
+    const needs = data.questions.find((q) => q.id === "accessibility-needs");
+    expect(needs?.downstreamRefs).toEqual(["special-directions-gate-code-etc"]);
   });
 
   it("carries a Data Quality Notes cell through verbatim when present", () => {

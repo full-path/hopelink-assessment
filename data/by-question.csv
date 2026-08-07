@@ -1,0 +1,48 @@
+﻿Question,Providers Required,Providers Optional,Providers Self Attestation,Providers Burden of Proof,Upstream Q's,Downstream Q's 
+,,,,,,
+First and last,"Hyde Shuttle, Northshore senior Center, Beyond the Borders, Access Paratransit, Metro Transit Instruction, ORCA, SAP, Snow Goose Transit, MetroFlex, Pierce Runner, Zip Shuttle",Homage TAP,,,,
+Phone,"Hyde Shuttle, Northshore senior Center, Beyond the Borders, Access Paratransit, Metro Transit Instruction, ORCA, Snow Goose Transit, MetroFlex, Pierce Runner, Zip Shuttle","Homage TAP, ORCA, SAP","Hyde Shuttle, Northshore senior Center, Beyond the Borders, Access Paratransit, Metro Transit Instruction, Homage TAP, ORCA",,,
+Email,"Hyde Shuttle, Northshore senior Center, ORCA (Senior), Beyond the Borders, Snow Goose Transit, MetroFlex, Pierce Runner, Zip Shuttle","Homage TAP, ORCA (disabled), ORCA LIFT, Metro Transit Instruction, Access Paratransit, SAP","Hyde Shuttle, Northshore senior Center, ORCA , Beyond the Borders, Homage TAP, ORCA, Metro Transit Instruction, Access Paratransit",,,
+Home address,"Hyde Shuttle, ORCA (disabled), Beyond the Borders, Access paratransit, SAP, Snow Goose Transit","Homage TAP, ORCA (Senior), ORCA LIFT","Hyde Shuttle, ORCA, Beyond the Borders, Access Paratransit, Homage TAP",,,Mailing address same as home address?
+Mailing address,"Northshore Senior Center, ORCA (Senior), ORCA LIFT, Access Paratransit","Homage TAP, ORCA (disabled), SAP","Northshore Senior Center, ORCA, Access Paratransit, Homage TAP",,Mailing address same as home address?,
+Accessibility needs,"Hyde Shuttle, Beyond the Borders",Homage TAP,"Hyde Shuttle, Beyond the Borders, Homage Tap",,,Which providercapabilities are needed
+Gender,Hyde Shuttle,"Homage TAP, Northshore Senior Center, Sound Generations VTS","Homage TAP, Northshore Senior Center, Sound Generations VTS",,,
+Race,Hyde Shuttle,Northshore Senior Center,"Hyde Shuttle, Northshore Senior Center",,,Ethnicity
+Ethnicity,Hyde Shuttle,"Northshore Senior Center, ORCA LIFT, SAP","Hyde Shuttle, Northshore Senior Center, ORCA LIFT",,Race,
+Primary language,"Hyde Shuttle, Access Paratransit, ORCA LIFT, Sound Generations VTS, SAP","Homage TAP, Metro Transit Instruction","Hyde Shuttle, Access Paratransit, Homage TAP, Metro Transit Instruction, ORCA LIFT",,,
+Veteran Status,Beyond the borders,"Homage TAP, Northshore Senior Center, Sound Generations VTS","Homage TAP, Northshore Senior Center, Beyond the Borders",,,
+Income,"Homage TAP, ORCA LIFT, Beyond the Borders, ","Sound Generations VTS, Hyde Shuttle, ","Homage TAP, Hyde Shuttle, Beyond the Borders","ORCA (ProviderOne number OR EBT number OR DSHS Client ID number OR  financial aid statement or award letter showing the Washington State Opportunity Grant OR Pay stub or Most recent tax return
+[Self-employed applicants only] or
+Unemployment award letter or
+Labor & Industries award letter or
+SSI/Retirement award letter + documentation of household size)",,
+Age,"Beyond the borders, Hyde Shuttle, ORCA, SAP, Snow Goose Transit",Homage TAP,"Homage TAP, Beyond the borders, Hyde Shuttle",ORCA (Photo ID),,
+Disabled,"Hyde Shuttle, ORCA, Beyond the Borders, Access paratransit, Snow Goose Transit",Homage TAP,"Homage TAP, Beyond the borders","ORCA (State or federal documentation), Access paratransit (signed note from doctor and in-person evaluation)",,Temporary or permanent disability?
+Is the disability temporary or permanent,,Homage TAP,Homage TAP,"ORCA (State or federal documentation), Access paratransit (signed note from doctor and in-person evaluation)","Disabled (for ORCA, whether disability is temporary or permanent is determined by the document you upload) ",
+Do you need transportation to dialysis?,Beyond the borders,,Beyond the Borders,,,
+Are you registered with Pierce SHUTTLE,Beyond the borders,,Beyond the Borders,,,
+Do you have a ProviderOne number,,Homage TAP,,Homage TAP (Type number into textbox),,
+Are you currently homeless?,,ORCA LIFT,ORCA LIFT,,Home Address,Mailing Address
+Preferred method of contact?,"ORCA LIFT, ORCA (Disabled), Beyond the Borders, Sound Generations VTS, SAP",Metro Transit Instruction,"ORCA LIFT, ORCA (Disabled), Beyond the Borders, Metro Transit Instruction, Sound Generations VTS",,"Phone number, email",
+May we leave a message?,"ORCA LIFT, ORCA (Disabled), SAP",,,,Preferred Method of Contact,
+Emergency Contact,"Homage TAP, Northshore Senior Center,",Sound Generations VTS,Sound Generations VTS,,,
+Are you a King County Resident?,Sound Generations VTS ,,Sound Generations VTS,,Home Address,
+Can you get in and out of a vehicle on your own?,Sound Generations VTS,,Sound Generations VTS,,,
+Do you live alone,,Sound Generations VTS,Sound Generations VTS,,,
+Are you an immigrant,,Sound Generations VTS,Sound Generations VTS,,,
+Marital Status,,"Sound Generations VTS, Northshore Senior Center",Sound Generations VTS,,,
+Sexual Orientation,,Sound Generations VTS,Sound Generations VTS,,,
+Do you need an interpreter,,Sound Generations VTS,Sound Generations VTS,,"Preferred Language, accessibility needs",
+Do you have any allergies we need to be aware of,,Sound Generations VTS,Sound Generations VTS,,,
+Do you require a service animal,,Sound Generations VTS,Sound Generations VTS,,Accessibility needs,
+Do you smoke,,Sound Generations VTS,Sound Generations VTS,,,
+Do you require portable Oxygen,,Sound Generations VTS,Sound Generations VTS,,,
+Do you need a companion,,Sound Generations VTS,Sound Generations VTS,,Accessibility needs,
+Do you have hearing issues or sight issues,,Sound Generations VTS,Sound Generations VTS,,Disability status,
+How many riders to expect,,Sound Generations VTS,Sound Generations VTS,,Accessibility needs,
+Anything you would like your driver to know about you?,,Sound Generations VTS,Sound Generations VTS,,,
+"Do you require any special assistance (extra load time, comfort pet, etc)",,Hyde Shuttle,Hyde Shuttle,,Accessibility needs,
+"Special directions (gate code, etc)",,Hyde Shuttle,Hyde Shuttle,,,
+Household Size,SAP,,,SAP,,
+Selection of benefits program,SAP,,,SAP,,Do you have a ProviderOne number?
+Benefits ID Number,SAP,,,SAP,,Do you have a ProviderOne number?

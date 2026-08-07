@@ -1,8 +1,10 @@
 import Papa from "papaparse";
-import type { Agency, AgencyRequirement, IntakeQuestion, NormalizedData } from "./types";
+import type { AgencyRequirement, IntakeQuestion, NormalizedData } from "./types";
+import { CANONICAL_AGENCIES, resolveAgencyId } from "./agencies";
+import { normalizeWhitespace, slugify } from "./text";
 
 /**
- * CSV → NormalizedData logic, shared by two callers:
+ * `data/eligibility-questions.csv` → NormalizedData, shared by two callers:
  *
  *  - `scripts/build-data.ts`, which generates the committed `questions.json` at build time
  *    from the source-of-record CSV in `/data`; and
@@ -21,80 +23,6 @@ export interface SourceRow {
   "Upstream Q's": string;
   "Downstream Q's": string;
   "Data Quality Notes"?: string;
-}
-
-/**
- * Canonical agency roster. Aliases cover casing/wording variants observed in past
- * revisions of the source CSV (see CLAUDE.md Section 3) so the resolver stays
- * correct even if a future CSV edit reintroduces that drift. ORCA program variants
- * are kept as distinct agencies per CLAUDE.md Section 11, item 1.
- */
-export const CANONICAL_AGENCIES: Agency[] = [
-  { id: "hyde-shuttle", displayName: "Hyde Shuttle", aliases: ["Hyde Shuttle"] },
-  {
-    id: "northshore-senior-center",
-    displayName: "Northshore Senior Center",
-    aliases: ["Northshore Senior Center", "Northshore senior Center"],
-  },
-  {
-    id: "beyond-the-borders",
-    displayName: "Beyond the Borders",
-    aliases: ["Beyond the Borders", "Beyond the borders"],
-  },
-  {
-    id: "access-paratransit",
-    displayName: "Access Paratransit",
-    aliases: ["Access Paratransit", "Access paratransit"],
-  },
-  {
-    id: "metro-transit-instruction",
-    displayName: "Metro Transit Instruction",
-    aliases: ["Metro Transit Instruction"],
-  },
-  { id: "orca", displayName: "ORCA", aliases: ["ORCA"] },
-  { id: "orca-senior", displayName: "ORCA (Senior)", aliases: ["ORCA (Senior)"] },
-  {
-    id: "orca-disabled",
-    displayName: "ORCA (Disabled)",
-    aliases: ["ORCA (Disabled)", "ORCA (disabled)"],
-  },
-  { id: "orca-lift", displayName: "ORCA LIFT", aliases: ["ORCA LIFT"] },
-  { id: "homage-tap", displayName: "Homage TAP", aliases: ["Homage TAP", "Homage Tap"] },
-];
-
-function normalizeWhitespace(value: string): string {
-  return value.trim().replace(/\s+/g, " ");
-}
-
-function buildAliasLookup(agencies: Agency[]): Map<string, string> {
-  const lookup = new Map<string, string>();
-  for (const agency of agencies) {
-    for (const alias of agency.aliases) {
-      const key = normalizeWhitespace(alias).toLowerCase();
-      const existing = lookup.get(key);
-      if (existing !== undefined && existing !== agency.id) {
-        throw new Error(
-          `Alias collision: "${alias}" maps to both "${existing}" and "${agency.id}"`,
-        );
-      }
-      lookup.set(key, agency.id);
-    }
-  }
-  return lookup;
-}
-
-const ALIAS_LOOKUP = buildAliasLookup(CANONICAL_AGENCIES);
-
-/** Resolves a raw agency string from the CSV to a canonical agency id. Throws on anything unrecognized. */
-export function resolveAgencyId(raw: string): string {
-  const key = normalizeWhitespace(raw).toLowerCase();
-  const id = ALIAS_LOOKUP.get(key);
-  if (id === undefined) {
-    throw new Error(
-      `Unrecognized agency name "${raw}". Add it to CANONICAL_AGENCIES in src/data/normalize.ts.`,
-    );
-  }
-  return id;
 }
 
 /** Splits a simple comma-delimited agency-list cell (Required / Optional / Self-Attestation) into agency ids. */
@@ -138,14 +66,6 @@ export function parseBurdenOfProof(cell: string): AgencyRequirement[] {
     });
 }
 
-/** Generates a stable, URL-safe slug id from question text. */
-export function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 export function normalize(rows: SourceRow[]): NormalizedData {
   const textToId = new Map<string, string>();
   const usedIds = new Set<string>();
@@ -159,15 +79,29 @@ export function normalize(rows: SourceRow[]): NormalizedData {
     textToId.set(text, id);
   }
 
+  /**
+   * An Upstream/Downstream cell may name more than one question. References are
+   * semicolon-delimited, matching the convention the Burden-of-Proof cell already uses and
+   * for the same reason: question text can itself contain commas (e.g. "Special directions
+   * (gate code, etc)"), so a comma is not a safe separator. Each reference must match another
+   * row's question text exactly; anything else is reported as unresolved rather than guessed at.
+   */
   function resolveLink(raw: string): { resolved: string[]; unresolved: string[] } {
-    const text = normalizeWhitespace(raw);
-    if (!text) {
-      return { resolved: [], unresolved: [] };
+    const resolved: string[] = [];
+    const unresolved: string[] = [];
+    for (const segment of raw.split(";")) {
+      const text = normalizeWhitespace(segment);
+      if (!text) {
+        continue;
+      }
+      const id = textToId.get(text);
+      if (id !== undefined) {
+        resolved.push(id);
+      } else {
+        unresolved.push(text);
+      }
     }
-    const id = textToId.get(text);
-    return id !== undefined
-      ? { resolved: [id], unresolved: [] }
-      : { resolved: [], unresolved: [text] };
+    return { resolved, unresolved };
   }
 
   const questions: IntakeQuestion[] = rows.map((row) => {

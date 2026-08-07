@@ -10,6 +10,9 @@ A static, client-side web application, deployed to GitHub Pages, that:
 3. For each question, surfaces metadata: which agencies require it, which treat it as optional,
    which accept self-attestation, which demand documentary proof (and what proof), and any
    upstream/downstream relationship to other questions.
+4. Cross-references those questions against what each provider can physically accommodate, so a
+   reader can see whether a question is doing any routing work at all — a capability every
+   provider offers equally cannot distinguish one provider from another.
 
 Primary audience for the running application: Hopelink leadership, participating pilot agencies,
 and the Advisory Committee — reviewing how much intake overlap exists and where standardization
@@ -20,9 +23,17 @@ Primary audience for the *codebase*: a competent web developer who did not build
 able to read, verify, and extend it without archaeology. Code clarity is a functional requirement,
 not a preference.
 
-## 2. Data Source
+## 2. Data Sources
 
-Source file: `Eligibility_Questions.csv`. Columns as shipped:
+Three CSVs in `/data`, all hand-editable sources of record:
+
+| File | Contents |
+|---|---|
+| `eligibility-questions.csv` | The intake questions. Cleaned from the raw agency-survey export (`by-question.csv`), which is kept alongside it unmodified so the cleanup is auditable. |
+| `capabilities.csv` | One row per ride provider, one column per capability (wheelchair, lift, service animals, …), free-text answers. |
+| `question-capability-map.csv` | An editorial claim that a given question exists in order to determine a given capability. Not derivable from either sheet above — a human asserts it, and the `Note` column records why. Kept as a CSV rather than in code so a program person can review and edit it. |
+
+Columns of `eligibility-questions.csv` as shipped:
 
 | Column | Content |
 |---|---|
@@ -56,13 +67,27 @@ application parses the raw cells directly at runtime:
   text using the same comma delimiter used elsewhere for agency lists, e.g.
   `ORCA (ProviderOne number OR EBT number OR DSHS Client ID number)`. Naive comma-splitting breaks
   this.
+- **Multi-reference link cells.** Some `Upstream Q's` cells name two questions in one cell,
+  comma-separated (`Phone number, email`). Commas cannot be the separator here because question
+  text contains commas of its own (`Special directions (gate code, etc)`), so the cleaned CSV
+  re-delimits these with `;` — the same convention the proof column uses — and `normalize.ts`
+  splits on `;`.
 - **Structural noise.** A blank row follows the header row. Some agency names carry trailing
-  whitespace (e.g. `"ORCA "`).
+  whitespace (e.g. `"ORCA "`), some cells end in a trailing comma that yields an empty agency
+  token, the `Downstream Q's ` header itself carries a trailing space, and one proof cell
+  (Income) spans five physical lines inside its quotes.
+- **Free-text capability answers.** `capabilities.csv` answers in prose: `Yes`, `yes`, `No`, `no`,
+  `Yes (1)`, `Probably yes`, `Depends on vehicle`, `Yes (Language line)`, and blanks. These are
+  mapped to a canonical vocabulary with the agency's own wording kept as a qualifier. **A blank is
+  `unknown`, never `no`** — three agencies returned an entirely blank row, and reporting that as
+  "does not offer wheelchair access" would be actively false.
 
 None of these should be handled with defensive parsing logic scattered through the application.
-They are resolved once, in a single shared normalization module (`src/data/normalize.ts`) used by
-both the build-time script and the in-browser upload preview, producing clean typed data that the
-application consumes. UI code should never see a raw CSV row.
+They are resolved once, in the shared normalization layer under `src/data/` — `normalize.ts` for
+the questions sheet, `normalizeCapabilities.ts` for the capability sheets, with the agency roster
+(`agencies.ts`) and string helpers (`text.ts`) shared between them. Every path into the app, build
+script and in-browser upload alike, goes through those modules. UI code should never see a raw
+CSV row.
 
 ## 4. Data Model (Normalized Output of Preprocessing)
 
@@ -89,20 +114,57 @@ interface IntakeQuestion {
 interface Agency {
   id: string;
   displayName: string;
-  aliases: string[];       // raw strings from source CSV mapped to this agency
+  kind: "ride_provider" | "fare_program" | "travel_training";
+  aliases: string[];       // raw strings from source CSVs mapped to this agency
+}
+
+// --- Provider capabilities ---
+
+type CapabilityValue = "yes" | "no" | "conditional" | "unknown";
+
+interface Capability {
+  id: string;              // slug of the source column header
+  label: string;           // column header verbatim
+}
+
+interface AgencyCapability {
+  capabilityId: string;
+  value: CapabilityValue;
+  qualifier?: string;      // the agency's own wording, e.g. "1", "Language line"
+}
+
+interface AgencyCapabilityProfile {
+  agencyId: string;
+  capabilities: AgencyCapability[];
+}
+
+interface QuestionCapabilityLink {
+  questionText: string;    // resolved to a question id at runtime, not at build time
+  capabilityId: string;
+  note?: string;           // why a human asserted this link
 }
 ```
 
+`Agency.kind` exists because the roster mixes vehicle operators with fare/pass programs. Vehicle
+capabilities are meaningful for the former and a category error for the latter — without the
+distinction the capabilities view would report ORCA and SAP as gaps in the survey.
+
+`QuestionCapabilityLink` stores question *text* rather than an id so it can be re-resolved against
+whatever question set is displayed; an uploaded CSV that renames a question loses that link and
+has it reported as unmatched, rather than rendering something stale.
+
 Unresolved upstream/downstream references (Section 3) are preserved in `unresolvedLinks` and
 rendered in the UI as flagged/unlinked rather than silently dropped. Hiding known-bad data is worse
-than displaying it as unresolved.
+than displaying it as unresolved. The same rule governs `unknown` capability values and unmatched
+question/capability links.
 
 ## 5. Functional Requirements
 
 1. Single-page list of all unique questions.
 2. Per-question expandable detail showing, per agency: requirement level and proof detail where
    applicable.
-3. Filter/sort by: agency, requirement level, presence of unresolved links.
+3. Filter/sort by: agency, requirement level, presence of unresolved links, and relationship to
+   provider capabilities (linked to one at all; or a "unified intake candidate" — see item 7).
 4. Visual indicator distinguishing questions with resolved upstream/downstream chains from those
    with unresolved free-text references.
 5. A summary view answering the core stakeholder question directly: for a given candidate
@@ -113,7 +175,16 @@ than displaying it as unresolved.
    browser, held in memory, never sent anywhere, and discarded on reload. A malformed upload
    (unknown agency, missing columns, parse errors) surfaces the error and leaves the currently
    displayed dataset untouched. The committed CSV remains the source of record; making an
-   uploaded file permanent still means editing `/data` and rebuilding (Section 8).
+   uploaded file permanent still means editing `/data` and rebuilding (Section 8). Upload
+   replaces the **intake questions only** — capability data is always the committed set, and the
+   question/capability map is re-resolved against the uploaded questions.
+7. A provider-capabilities view, and a per-question capability panel, answering: what is this
+   question actually determining about a provider, and does that determination distinguish one
+   provider from another? A capability every provider offers equally cannot route a rider, so a
+   question about it does no work in a unified intake; one that varies while most providers don't
+   ask about it is the strongest case for adding it. Reporting gaps are named rather than
+   flattened: "surveyed and answered nothing", "never surveyed", and "operates no vehicles, so
+   the question does not apply" are three different things and appear as three different things.
 
 ## 6. Non-Functional Requirements / Code Quality Standards
 
@@ -122,12 +193,20 @@ than displaying it as unresolved.
   detail panels — plain TypeScript + minimal DOM, or a lightweight framework at most. Do not
   introduce state-management libraries, routing libraries, or a component framework to solve a
   problem of this size.
-- CSV → JSON normalization lives in one shared module (`src/data/normalize.ts`), independently
-  testable, independent of any UI code. `scripts/build-data.ts` is a thin CLI wrapper around it;
-  the browser upload path calls the same functions.
-- Unit tests for the normalization module specifically: agency alias resolution, proof-field
-  splitting, unresolved-link detection. This is the part of the system most likely to silently
-  produce wrong output, and the part least likely to be caught by visual inspection.
+- CSV → JSON normalization lives in the shared modules under `src/data/`, independently testable
+  and independent of any UI code. `scripts/build-data.ts` is a thin CLI wrapper around them; the
+  browser upload path calls the same functions. `normalize.ts` and `normalizeCapabilities.ts` are
+  siblings with no dependency between them — what they share (the agency roster, string
+  canonicalization) lives in `agencies.ts` and `text.ts`.
+- Analysis that is a *view over* the data rather than part of it — the standardization summary
+  (`src/summary.ts`) and the capability variance analysis (`src/capabilities.ts`) — stays out of
+  the data contract, as pure functions with no DOM.
+- Unit tests for the normalization modules specifically: agency alias resolution, proof-field
+  splitting, unresolved-link detection, capability value parsing, question/capability link
+  resolution. This is the part of the system most likely to silently produce wrong output, and the
+  part least likely to be caught by visual inspection. `src/app.render.test.ts` additionally mounts
+  the whole app against the committed data, because a throw inside `render()` yields a blank page
+  that every unit test would still pass.
 - ESLint + Prettier, checked in.
 - No unused dependencies, no scaffolding boilerplate left over from a starter template.
 - Semantic HTML and basic ARIA attributes on interactive elements — this is a tool for an
@@ -142,19 +221,23 @@ than displaying it as unresolved.
 - CSV parsing: `papaparse`, used only inside the shared normalization module. Since that module
   also powers the in-browser upload preview (Section 5, requirement 6), papaparse ships in the
   client bundle — it is a runtime dependency, not a dev-only one.
-- No backend. No runtime database. Output is static HTML/CSS/JS plus one generated JSON file.
-  Uploaded CSVs are processed client-side only and never leave the browser.
-- UI: plain TypeScript + DOM, or Preact if component structure proves warranted during
-  implementation. Decision deferred to implementation time based on actual complexity, not
-  assumed upfront.
+- No backend. No runtime database. Output is static HTML/CSS/JS plus two generated JSON files
+  (`questions.json`, `capabilities.json`). Uploaded CSVs are processed client-side only and never
+  leave the browser.
+- UI: plain TypeScript + DOM. Settled at implementation time (Section 11, item 4): the component
+  tree never became stateful enough to warrant Preact. The two-view switcher is a hand-rolled ARIA
+  tablist rather than a routing library, per the rule above.
+- Test environment: `happy-dom`, for the whole-app render test only.
 
 ## 8. Build & Deployment Pipeline
 
-1. `Eligibility_Questions.csv` checked into `/data/` as source of record.
-2. `scripts/build-data.ts` runs at build time, outputs `/src/data/questions.json`.
+1. The three CSVs (Section 2) checked into `/data/` as sources of record.
+2. `scripts/build-data.ts` runs at build time, outputs `/src/data/questions.json` and
+   `/src/data/capabilities.json`. It warns (without failing) when a question/capability map entry
+   matches no question — the map is allowed to lag a CSV edit by one commit.
 3. Vite builds static assets.
 4. GitHub Actions workflow builds on push to `main` and deploys to GitHub Pages.
-5. Updating the intake comparison going forward means editing the CSV and re-running the build.
+5. Updating the intake comparison going forward means editing the CSVs and re-running the build.
    The in-app CSV upload (Section 5, requirement 6) is a session-only preview for trying a
    candidate revision — it does not persist anything; permanent changes still go through this
    pipeline. Building a live-editing interface remains out of scope (Section 10).
@@ -162,12 +245,24 @@ than displaying it as unresolved.
 ## 9. Repository Structure
 
 ```
-/data/eligibility-questions.csv       # source of record, hand-edited
-/scripts/build-data.ts                # thin CLI: reads CSV, writes questions.json via the shared module
-/src/data/normalize.ts                # shared normalization logic: CSV text -> NormalizedData
-/src/data/normalize.test.ts           # tests for normalization logic
+/data/by-question.csv                 # raw agency-survey export, kept unmodified for audit
+/data/eligibility-questions.csv       # source of record, hand-edited (cleaned from the above)
+/data/capabilities.csv                # source of record: provider capability matrix
+/data/question-capability-map.csv     # source of record: editorial question -> capability claims
+/scripts/build-data.ts                # thin CLI: reads the CSVs, writes the JSON via the shared modules
+/src/data/text.ts                     # string canonicalization shared by both normalizers
+/src/data/agencies.ts                 # canonical agency roster + alias resolution
+/src/data/normalize.ts                # questions:     CSV text -> NormalizedData
+/src/data/normalizeCapabilities.ts    # capabilities:  CSV text -> CapabilityData
+/src/data/normalize.test.ts
+/src/data/normalizeCapabilities.test.ts
 /src/data/questions.json              # generated, committed
+/src/data/capabilities.json           # generated, committed
 /src/data/types.ts                    # the data contract
+/src/summary.ts                       # standardization analysis (view over the data)
+/src/capabilities.ts                  # capability variance analysis (view over the data)
+/src/capabilities.test.ts
+/src/app.render.test.ts               # whole-app render smoke test (happy-dom)
 /src/main.ts
 /src/components/
 /src/styles/
@@ -203,5 +298,37 @@ unless corrected:
    secret or external source, since the CSV itself is committed. Confirm this is acceptable before
    assuming the data is non-sensitive enough to commit in plaintext — it is aggregate policy data,
    not rider PII, but confirm no agency considers its own intake practices confidential.
-4. **No framework decision has been finalized** (Section 7) — plain TypeScript is the default;
-   escalate to Preact only if implementation reveals genuine component-state complexity.
+4. ~~**No framework decision has been finalized**~~ — settled. Plain TypeScript + DOM; the
+   component tree never became stateful enough to warrant Preact.
+5. **Paraphrased link references were matched, not dropped.** Three upstream references in the raw
+   export name a question by paraphrase rather than exact text: `Phone number` → `Phone`,
+   `Preferred Language` → `Primary language`, `Disability status` → `Disabled`. These were matched
+   by hand in the cleaned CSV and the assumption recorded in that row's `Data Quality Notes`. The
+   normalizer itself still does no fuzzy matching. If any of these three is wrong, fix the CSV.
+6. **`SAP` is carried as its bare acronym** because the source never expands it. Confirm what it
+   stands for before it appears in anything stakeholder-facing.
+7. **`Pierce SHUTTLE`**, named in the question "Are you registered with Pierce SHUTTLE", is not on
+   the agency roster. Whether it is the roster's `Pierce Runner` or a separate Pierce County
+   program is unresolved.
+8. **`Community Van` is on the roster but has no intake data.** It appears in
+   `data/capabilities.csv` and asks no questions in the intake sheet. Rather than omit it, views
+   that list agencies per question derive their population from the question data, so it does not
+   appear as "does not ask" on all 42 questions; the capabilities coverage view names the gap
+   explicitly instead. Confirm whether its intake questions simply weren't surveyed.
+9. **Agency `kind` classification is an assumption.** `ORCA`, `ORCA (Senior)`, `ORCA (Disabled)`,
+   `ORCA LIFT` and `SAP` are treated as fare/pass programs and `Metro Transit Instruction` as
+   travel training, meaning vehicle capabilities are reported as "not applicable" rather than as a
+   survey gap. The evidence is that `capabilities.csv` surveyed exactly the ride providers and none
+   of these. If any of them does operate vehicles, correct `kind` in `src/data/agencies.ts`.
+10. **The question → capability map is editorial.** Nothing in either CSV asserts that
+    "Do you require portable Oxygen" exists to determine the "Portable Oxygen" capability; a human
+    claimed it in `data/question-capability-map.csv`, with the reasoning in each row's `Note`.
+    Mappings deliberately *not* made, because they were arguable rather than clear: "Do you have
+    hearing issues or sight issues" → Interpretation Support, "Do you require any special
+    assistance (extra load time, comfort pet, etc)" → Allows service animals, "How many riders to
+    expect" → Allows for companions. Review the file before relying on the analysis it drives.
+11. **"Varies" is judged only on providers that answered**, with a minimum of two responses before
+    any verdict is offered. With three agencies returning entirely blank surveys and two never
+    surveyed, several verdicts rest on three or four responses. The counts are displayed alongside
+    every verdict so a reader can weigh them, but the analysis will firm up considerably if the
+    non-responding agencies are chased.

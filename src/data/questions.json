@@ -3,6 +3,7 @@
     {
       "id": "hyde-shuttle",
       "displayName": "Hyde Shuttle",
+      "kind": "ride_provider",
       "aliases": [
         "Hyde Shuttle"
       ]
@@ -10,6 +11,7 @@
     {
       "id": "northshore-senior-center",
       "displayName": "Northshore Senior Center",
+      "kind": "ride_provider",
       "aliases": [
         "Northshore Senior Center",
         "Northshore senior Center"
@@ -18,6 +20,7 @@
     {
       "id": "beyond-the-borders",
       "displayName": "Beyond the Borders",
+      "kind": "ride_provider",
       "aliases": [
         "Beyond the Borders",
         "Beyond the borders"
@@ -26,6 +29,7 @@
     {
       "id": "access-paratransit",
       "displayName": "Access Paratransit",
+      "kind": "ride_provider",
       "aliases": [
         "Access Paratransit",
         "Access paratransit"
@@ -34,6 +38,7 @@
     {
       "id": "metro-transit-instruction",
       "displayName": "Metro Transit Instruction",
+      "kind": "travel_training",
       "aliases": [
         "Metro Transit Instruction"
       ]
@@ -41,6 +46,7 @@
     {
       "id": "orca",
       "displayName": "ORCA",
+      "kind": "fare_program",
       "aliases": [
         "ORCA"
       ]
@@ -48,6 +54,7 @@
     {
       "id": "orca-senior",
       "displayName": "ORCA (Senior)",
+      "kind": "fare_program",
       "aliases": [
         "ORCA (Senior)"
       ]
@@ -55,6 +62,7 @@
     {
       "id": "orca-disabled",
       "displayName": "ORCA (Disabled)",
+      "kind": "fare_program",
       "aliases": [
         "ORCA (Disabled)",
         "ORCA (disabled)"
@@ -63,6 +71,7 @@
     {
       "id": "orca-lift",
       "displayName": "ORCA LIFT",
+      "kind": "fare_program",
       "aliases": [
         "ORCA LIFT"
       ]
@@ -70,9 +79,67 @@
     {
       "id": "homage-tap",
       "displayName": "Homage TAP",
+      "kind": "ride_provider",
       "aliases": [
         "Homage TAP",
         "Homage Tap"
+      ]
+    },
+    {
+      "id": "sound-generations-vts",
+      "displayName": "Sound Generations VTS",
+      "kind": "ride_provider",
+      "aliases": [
+        "Sound Generations VTS",
+        "SG VTS"
+      ]
+    },
+    {
+      "id": "sap",
+      "displayName": "SAP",
+      "kind": "fare_program",
+      "aliases": [
+        "SAP"
+      ]
+    },
+    {
+      "id": "snow-goose-transit",
+      "displayName": "Snow Goose Transit",
+      "kind": "ride_provider",
+      "aliases": [
+        "Snow Goose Transit"
+      ]
+    },
+    {
+      "id": "metroflex",
+      "displayName": "MetroFlex",
+      "kind": "ride_provider",
+      "aliases": [
+        "MetroFlex"
+      ]
+    },
+    {
+      "id": "pierce-runner",
+      "displayName": "Pierce Runner",
+      "kind": "ride_provider",
+      "aliases": [
+        "Pierce Runner"
+      ]
+    },
+    {
+      "id": "zip-shuttle",
+      "displayName": "Zip Shuttle",
+      "kind": "ride_provider",
+      "aliases": [
+        "Zip Shuttle"
+      ]
+    },
+    {
+      "id": "community-van",
+      "displayName": "Community Van",
+      "kind": "ride_provider",
+      "aliases": [
+        "Community Van"
       ]
     }
   ],
@@ -103,6 +170,26 @@
         },
         {
           "agencyId": "orca",
+          "level": "required"
+        },
+        {
+          "agencyId": "sap",
+          "level": "required"
+        },
+        {
+          "agencyId": "snow-goose-transit",
+          "level": "required"
+        },
+        {
+          "agencyId": "metroflex",
+          "level": "required"
+        },
+        {
+          "agencyId": "pierce-runner",
+          "level": "required"
+        },
+        {
+          "agencyId": "zip-shuttle",
           "level": "required"
         },
         {
@@ -142,11 +229,31 @@
           "level": "required"
         },
         {
+          "agencyId": "snow-goose-transit",
+          "level": "required"
+        },
+        {
+          "agencyId": "metroflex",
+          "level": "required"
+        },
+        {
+          "agencyId": "pierce-runner",
+          "level": "required"
+        },
+        {
+          "agencyId": "zip-shuttle",
+          "level": "required"
+        },
+        {
           "agencyId": "homage-tap",
           "level": "optional"
         },
         {
           "agencyId": "orca",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sap",
           "level": "optional"
         },
         {
@@ -203,6 +310,22 @@
           "level": "required"
         },
         {
+          "agencyId": "snow-goose-transit",
+          "level": "required"
+        },
+        {
+          "agencyId": "metroflex",
+          "level": "required"
+        },
+        {
+          "agencyId": "pierce-runner",
+          "level": "required"
+        },
+        {
+          "agencyId": "zip-shuttle",
+          "level": "required"
+        },
+        {
           "agencyId": "homage-tap",
           "level": "optional"
         },
@@ -220,6 +343,10 @@
         },
         {
           "agencyId": "access-paratransit",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sap",
           "level": "optional"
         },
         {
@@ -276,6 +403,14 @@
           "level": "required"
         },
         {
+          "agencyId": "sap",
+          "level": "required"
+        },
+        {
+          "agencyId": "snow-goose-transit",
+          "level": "required"
+        },
+        {
           "agencyId": "homage-tap",
           "level": "optional"
         },
@@ -313,7 +448,7 @@
       "unresolvedLinks": [
         "Mailing address same as home address?"
       ],
-      "dataQualityNote": "Bare 'ORCA' appears in Self-Attestation but not in Required or Optional for this question — same completeness gap as Email row, not resolved here."
+      "dataQualityNote": "Bare 'ORCA' appears in Self-Attestation but not in Required or Optional for this question — same completeness gap as the Email row, not resolved here. Downstream reference does not match any Question row in this sheet and is left unresolved."
     },
     {
       "id": "mailing-address",
@@ -344,6 +479,10 @@
           "level": "optional"
         },
         {
+          "agencyId": "sap",
+          "level": "optional"
+        },
+        {
           "agencyId": "northshore-senior-center",
           "level": "self_attestation"
         },
@@ -365,7 +504,7 @@
       "unresolvedLinks": [
         "Mailing address same as home address?"
       ],
-      "dataQualityNote": "Bare 'ORCA' in Self-Attestation not present in Required or Optional for this question — completeness gap, not resolved here."
+      "dataQualityNote": "Bare 'ORCA' in Self-Attestation not present in Required or Optional for this question — completeness gap, not resolved here. Upstream reference does not match any Question row and is left unresolved."
     },
     {
       "id": "accessibility-needs",
@@ -401,7 +540,7 @@
       "unresolvedLinks": [
         "Which provider capabilities are needed"
       ],
-      "dataQualityNote": "Downstream reference does not match any Question row in this sheet. Typo 'providercapabilities' corrected to 'provider capabilities'; link itself remains unresolved."
+      "dataQualityNote": "Typo 'providercapabilities' corrected to 'provider capabilities'. The reference still matches no Question row and stays unresolved — it points at provider capability data (see data/capabilities.csv), which is a separate dataset this sheet does not model."
     },
     {
       "id": "gender",
@@ -418,6 +557,22 @@
         {
           "agencyId": "northshore-senior-center",
           "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
         }
       ],
       "upstreamRefs": [],
@@ -466,6 +621,10 @@
           "level": "optional"
         },
         {
+          "agencyId": "sap",
+          "level": "optional"
+        },
+        {
           "agencyId": "hyde-shuttle",
           "level": "self_attestation"
         },
@@ -500,6 +659,14 @@
           "level": "required"
         },
         {
+          "agencyId": "sound-generations-vts",
+          "level": "required"
+        },
+        {
+          "agencyId": "sap",
+          "level": "required"
+        },
+        {
           "agencyId": "homage-tap",
           "level": "optional"
         },
@@ -532,8 +699,8 @@
       "downstreamRefs": []
     },
     {
-      "id": "military-service",
-      "text": "Military service",
+      "id": "veteran-status",
+      "text": "Veteran Status",
       "requirements": [
         {
           "agencyId": "beyond-the-borders",
@@ -545,6 +712,10 @@
         },
         {
           "agencyId": "northshore-senior-center",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
           "level": "optional"
         },
         {
@@ -561,7 +732,8 @@
         }
       ],
       "upstreamRefs": [],
-      "downstreamRefs": []
+      "downstreamRefs": [],
+      "dataQualityNote": "This row appeared as 'Military service' in the previous revision of this file; the source sheet's wording is used here, which changes the generated question id."
     },
     {
       "id": "income",
@@ -572,16 +744,20 @@
           "level": "required"
         },
         {
-          "agencyId": "hyde-shuttle",
-          "level": "required"
-        },
-        {
           "agencyId": "orca-lift",
           "level": "required"
         },
         {
           "agencyId": "beyond-the-borders",
           "level": "required"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "optional"
         },
         {
           "agencyId": "homage-tap",
@@ -598,12 +774,12 @@
         {
           "agencyId": "orca",
           "level": "proof_required",
-          "proofDetail": "ProviderOne number OR EBT number OR DSHS Client ID number"
+          "proofDetail": "ProviderOne number OR EBT number OR DSHS Client ID number OR financial aid statement or award letter showing the Washington State Opportunity Grant OR Pay stub or Most recent tax return [Self-employed applicants only] or Unemployment award letter or Labor & Industries award letter or SSI/Retirement award letter + documentation of household size"
         }
       ],
       "upstreamRefs": [],
       "downstreamRefs": [],
-      "dataQualityNote": "Proof entry references bare 'ORCA', but only 'ORCA LIFT' appears under Providers Required for this question — likely intended to reference ORCA LIFT specifically. Not changed; flagged for confirmation."
+      "dataQualityNote": "Proof cell spanned five lines in the source; line breaks collapsed to spaces, wording unchanged. Proof entry references bare 'ORCA', but only 'ORCA LIFT' appears under Providers Required for this question — likely intended to reference ORCA LIFT specifically. Not changed; flagged for confirmation."
     },
     {
       "id": "age",
@@ -619,6 +795,14 @@
         },
         {
           "agencyId": "orca",
+          "level": "required"
+        },
+        {
+          "agencyId": "sap",
+          "level": "required"
+        },
+        {
+          "agencyId": "snow-goose-transit",
           "level": "required"
         },
         {
@@ -667,6 +851,10 @@
           "level": "required"
         },
         {
+          "agencyId": "snow-goose-transit",
+          "level": "required"
+        },
+        {
           "agencyId": "homage-tap",
           "level": "optional"
         },
@@ -693,7 +881,7 @@
       "downstreamRefs": [
         "is-the-disability-temporary-or-permanent"
       ],
-      "dataQualityNote": "Downstream reference corrected from 'Temporary or permanent disability?' to match the exact text of the corresponding Question row."
+      "dataQualityNote": "Proof segments were comma-delimited in the source, which is ambiguous against the commas inside proof text; re-delimited with ';'. Downstream reference corrected from 'Temporary or permanent disability?' to match the exact text of the corresponding Question row."
     },
     {
       "id": "is-the-disability-temporary-or-permanent",
@@ -722,7 +910,7 @@
         "disabled"
       ],
       "downstreamRefs": [],
-      "dataQualityNote": "Upstream cell originally embedded an explanatory clause ('for ORCA, whether disability is temporary or permanent is determined by the document you upload'); link simplified to 'Disabled' and the explanation is preserved here rather than discarded. Separately: ORCA and Access Paratransit appear in Burden of Proof for this question but not in Required or Optional — completeness gap, not resolved here."
+      "dataQualityNote": "Upstream cell originally embedded an explanatory clause ('for ORCA, whether disability is temporary or permanent is determined by the document you upload'); link simplified to 'Disabled' and the explanation is preserved here rather than discarded. Proof segments re-delimited with ';'. Separately: ORCA and Access Paratransit appear in Burden of Proof for this question but not in Required or Optional — completeness gap, not resolved here."
     },
     {
       "id": "do-you-need-transportation-to-dialysis",
@@ -754,7 +942,8 @@
         }
       ],
       "upstreamRefs": [],
-      "downstreamRefs": []
+      "downstreamRefs": [],
+      "dataQualityNote": "'Pierce SHUTTLE' is question text, not an agency column, and is not on the canonical agency roster. Whether it refers to the roster's 'Pierce Runner' or to a separate Pierce County program is unresolved in the source."
     },
     {
       "id": "do-you-have-a-providerone-number",
@@ -772,7 +961,7 @@
       ],
       "upstreamRefs": [],
       "downstreamRefs": [],
-      "dataQualityNote": "Homage TAP appears under both Optional and Burden of Proof. The described 'proof' (typing a number into a textbox) is applicant self-report, not third-party documentary evidence, and arguably belongs under Self-Attestation. Not moved; flagged for confirmation."
+      "dataQualityNote": "Homage TAP appears under both Optional and Burden of Proof. The described 'proof' (typing a number into a textbox) is applicant self-report, not third-party documentary evidence, and arguably belongs under Self-Attestation. Not moved; flagged for confirmation. The SAP rows 'Selection of benefits program' and 'Benefits ID Number' name this question as downstream, but no reciprocal upstream link is recorded here."
     },
     {
       "id": "are-you-currently-homeless",
@@ -812,6 +1001,14 @@
           "level": "required"
         },
         {
+          "agencyId": "sound-generations-vts",
+          "level": "required"
+        },
+        {
+          "agencyId": "sap",
+          "level": "required"
+        },
+        {
           "agencyId": "metro-transit-instruction",
           "level": "optional"
         },
@@ -830,10 +1027,18 @@
         {
           "agencyId": "metro-transit-instruction",
           "level": "self_attestation"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
         }
       ],
-      "upstreamRefs": [],
-      "downstreamRefs": []
+      "upstreamRefs": [
+        "phone",
+        "email"
+      ],
+      "downstreamRefs": [],
+      "dataQualityNote": "Upstream cell held two comma-separated references ('Phone number, email'); re-delimited with ';' and matched to the 'Phone' and 'Email' Question rows. 'Phone number' is a paraphrase of 'Phone' — match assumed, not stated in the source."
     },
     {
       "id": "may-we-leave-a-message",
@@ -846,6 +1051,10 @@
         {
           "agencyId": "orca-disabled",
           "level": "required"
+        },
+        {
+          "agencyId": "sap",
+          "level": "required"
         }
       ],
       "upstreamRefs": [
@@ -853,6 +1062,380 @@
       ],
       "downstreamRefs": [],
       "dataQualityNote": "Upstream reference corrected from 'Preferred Method of Contact' to match exact Question-row text, including trailing '?'."
+    },
+    {
+      "id": "emergency-contact",
+      "text": "Emergency Contact",
+      "requirements": [
+        {
+          "agencyId": "homage-tap",
+          "level": "required"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "required"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "dataQualityNote": "Required cell had a trailing comma producing an empty agency token; removed."
+    },
+    {
+      "id": "are-you-a-king-county-resident",
+      "text": "Are you a King County Resident?",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "required"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [
+        "home-address"
+      ],
+      "downstreamRefs": [],
+      "dataQualityNote": "Upstream reference casing corrected from 'Home Address' to match exact Question-row text."
+    },
+    {
+      "id": "can-you-get-in-and-out-of-a-vehicle-on-your-own",
+      "text": "Can you get in and out of a vehicle on your own?",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "required"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "do-you-live-alone",
+      "text": "Do you live alone",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "are-you-an-immigrant",
+      "text": "Are you an immigrant",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "marital-status",
+      "text": "Marital Status",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "sexual-orientation",
+      "text": "Sexual Orientation",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "do-you-need-an-interpreter",
+      "text": "Do you need an interpreter",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [
+        "primary-language",
+        "accessibility-needs"
+      ],
+      "downstreamRefs": [],
+      "dataQualityNote": "Upstream cell held two comma-separated references ('Preferred Language, accessibility needs'); re-delimited with ';'. 'Preferred Language' is a paraphrase of the 'Primary language' Question row — match assumed, not stated in the source."
+    },
+    {
+      "id": "do-you-have-any-allergies-we-need-to-be-aware-of",
+      "text": "Do you have any allergies we need to be aware of",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "do-you-require-a-service-animal",
+      "text": "Do you require a service animal",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [
+        "accessibility-needs"
+      ],
+      "downstreamRefs": []
+    },
+    {
+      "id": "do-you-smoke",
+      "text": "Do you smoke",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "do-you-require-portable-oxygen",
+      "text": "Do you require portable Oxygen",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "do-you-need-a-companion",
+      "text": "Do you need a companion",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [
+        "accessibility-needs"
+      ],
+      "downstreamRefs": []
+    },
+    {
+      "id": "do-you-have-hearing-issues-or-sight-issues",
+      "text": "Do you have hearing issues or sight issues",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [
+        "disabled"
+      ],
+      "downstreamRefs": [],
+      "dataQualityNote": "Upstream reference given as 'Disability status'; matched to the 'Disabled' Question row as a paraphrase — match assumed, not stated in the source."
+    },
+    {
+      "id": "how-many-riders-to-expect",
+      "text": "How many riders to expect",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [
+        "accessibility-needs"
+      ],
+      "downstreamRefs": []
+    },
+    {
+      "id": "anything-you-would-like-your-driver-to-know-about-you",
+      "text": "Anything you would like your driver to know about you?",
+      "requirements": [
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "do-you-require-any-special-assistance-extra-load-time-comfort-pet-etc",
+      "text": "Do you require any special assistance (extra load time, comfort pet, etc)",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [
+        "accessibility-needs"
+      ],
+      "downstreamRefs": []
+    },
+    {
+      "id": "special-directions-gate-code-etc",
+      "text": "Special directions (gate code, etc)",
+      "requirements": [
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "optional"
+        },
+        {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": []
+    },
+    {
+      "id": "household-size",
+      "text": "Household Size",
+      "requirements": [
+        {
+          "agencyId": "sap",
+          "level": "required"
+        },
+        {
+          "agencyId": "sap",
+          "level": "proof_required"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "dataQualityNote": "SAP appears under Burden of Proof with no proof type specified, so the required document is unknown. The Income row's ORCA proof text ends with 'documentation of household size', suggesting a relationship to this question that the source records no link for."
+    },
+    {
+      "id": "selection-of-benefits-program",
+      "text": "Selection of benefits program",
+      "requirements": [
+        {
+          "agencyId": "sap",
+          "level": "required"
+        },
+        {
+          "agencyId": "sap",
+          "level": "proof_required"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [
+        "do-you-have-a-providerone-number"
+      ],
+      "dataQualityNote": "Downstream reference corrected from 'Do you have a ProviderOne number?' — the trailing '?' is not part of the corresponding Question row's text. SAP's proof type is unspecified."
+    },
+    {
+      "id": "benefits-id-number",
+      "text": "Benefits ID Number",
+      "requirements": [
+        {
+          "agencyId": "sap",
+          "level": "required"
+        },
+        {
+          "agencyId": "sap",
+          "level": "proof_required"
+        }
+      ],
+      "upstreamRefs": [],
+      "downstreamRefs": [
+        "do-you-have-a-providerone-number"
+      ],
+      "dataQualityNote": "Downstream reference corrected from 'Do you have a ProviderOne number?' — the trailing '?' is not part of the corresponding Question row's text. SAP's proof type is unspecified."
     }
   ]
 }

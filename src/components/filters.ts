@@ -7,7 +7,22 @@ export interface FilterState {
   agencyId: "all" | (string & {});
   level: RequirementLevel | "all";
   onlyUnresolved: boolean;
+  capability: CapabilityFilter;
 }
+
+/**
+ * Narrows the list by what a question determines about a provider:
+ *  - `linked`   — the question maps to at least one provider capability;
+ *  - `candidate` — of those, the ones whose capability actually varies between providers while
+ *    most providers don't yet ask it. This is the shortlist the standardization case rests on.
+ */
+export type CapabilityFilter = "all" | "linked" | "candidate";
+
+const CAPABILITY_LABELS: Record<CapabilityFilter, string> = {
+  all: "Any capability link",
+  linked: "Linked to a provider capability",
+  candidate: "Unified intake candidates",
+};
 
 export const LEVEL_LABELS: Record<RequirementLevel, string> = {
   required: "Required",
@@ -52,6 +67,22 @@ export function renderFilters(
     ),
   );
 
+  const capabilitySelect = h(
+    "select",
+    {
+      id: "filter-capability",
+      onChange: (e) => {
+        onChange({
+          ...state,
+          capability: (e.target as HTMLSelectElement).value as CapabilityFilter,
+        });
+      },
+    },
+    ...(Object.entries(CAPABILITY_LABELS) as [CapabilityFilter, string][]).map(([value, label]) =>
+      h("option", { value, selected: state.capability === value }, label),
+    ),
+  );
+
   const unresolvedCheckbox = h("input", {
     type: "checkbox",
     id: "filter-unresolved",
@@ -75,6 +106,12 @@ export function renderFilters(
       { className: "filters__field" },
       h("label", { for: "filter-level" }, "Requirement level"),
       levelSelect,
+    ),
+    h(
+      "div",
+      { className: "filters__field" },
+      h("label", { for: "filter-capability" }, "Provider capability"),
+      capabilitySelect,
     ),
     h(
       "div",

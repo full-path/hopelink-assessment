@@ -2,6 +2,22 @@ import { h } from "../dom";
 import type { Agency, IntakeQuestion } from "../data/types";
 import { LEVEL_LABELS } from "./filters";
 import { computeSummary } from "../summary";
+import { computeQuestionCapabilityInsight } from "../capabilities";
+import { renderCapabilityPanel, type CapabilityContext } from "./capabilityPanel";
+
+export interface QuestionCardProps {
+  question: IntakeQuestion;
+  agencyById: Map<string, Agency>;
+  questionById: Map<string, IntakeQuestion>;
+  /**
+   * The agency population the standardization summary compares against. Deliberately not the
+   * whole roster: an agency that appears in no intake row at all (Community Van) would otherwise
+   * be listed as "does not ask this question" on every question, which reads as a finding when
+   * it is really an absence of data. The capabilities view reports that absence explicitly.
+   */
+  summaryAgencyIds: string[];
+  capabilityContext: CapabilityContext;
+}
 
 function agencyName(agencyById: Map<string, Agency>, agencyId: string): string {
   return agencyById.get(agencyId)?.displayName ?? agencyId;
@@ -46,7 +62,11 @@ function renderRequirementsTable(question: IntakeQuestion, agencyById: Map<strin
   );
 }
 
-function renderLinks(question: IntakeQuestion, questionById: Map<string, IntakeQuestion>) {
+function renderLinks(
+  question: IntakeQuestion,
+  questionById: Map<string, IntakeQuestion>,
+  hasCapabilityLinks: boolean,
+) {
   const items: HTMLElement[] = [];
 
   for (const id of question.upstreamRefs) {
@@ -84,33 +104,37 @@ function renderLinks(question: IntakeQuestion, questionById: Map<string, IntakeQ
     return null;
   }
 
+  const hasUnresolved = (question.unresolvedLinks?.length ?? 0) > 0;
+
   return h(
     "div",
     { className: "links" },
     h("h4", {}, "Upstream / downstream"),
     h("ul", {}, ...items),
+    // The intake sheet's dangling references to provider capabilities have no question to point
+    // at, but they do have an answer — it just lives in a different dataset.
+    hasUnresolved && hasCapabilityLinks
+      ? h(
+          "p",
+          { className: "links__capability-hint" },
+          "An unresolved reference here points at provider capability data rather than another " +
+            "intake question. What this question determines about a provider is shown below.",
+        )
+      : undefined,
   );
 }
 
-function renderSummary(question: IntakeQuestion, agencyById: Map<string, Agency>) {
-  const summary = computeSummary(question, [...agencyById.keys()]);
+function renderSummary(
+  question: IntakeQuestion,
+  agencyById: Map<string, Agency>,
+  summaryAgencyIds: string[],
+) {
+  const summary = computeSummary(question, summaryAgencyIds);
 
-  const groups: { label: string; className: string; text: (agencyId: string) => string }[] = [
-    {
-      label: "Already compatible",
-      className: "posture--compatible",
-      text: (id) => agencyName(agencyById, id),
-    },
-    {
-      label: "Would need to change practice",
-      className: "posture--needs-change",
-      text: (id) => agencyName(agencyById, id),
-    },
-    {
-      label: "Does not currently ask this question",
-      className: "posture--not-asked",
-      text: (id) => agencyName(agencyById, id),
-    },
+  const groups: { label: string; className: string }[] = [
+    { label: "Already compatible", className: "posture--compatible" },
+    { label: "Would need to change practice", className: "posture--needs-change" },
+    { label: "Does not currently ask this question", className: "posture--not-asked" },
   ];
 
   const compatible = summary.postures.filter((p) => p.status === "compatible");
@@ -146,7 +170,7 @@ function renderSummary(question: IntakeQuestion, agencyById: Map<string, Agency>
                 `${agencyName(agencyById, p.agencyId)} — currently ${LEVEL_LABELS[p.currentLevel]}`,
               );
             }
-            return h("li", {}, group.text(p.agencyId));
+            return h("li", {}, agencyName(agencyById, p.agencyId));
           }),
         ),
       );
@@ -154,12 +178,21 @@ function renderSummary(question: IntakeQuestion, agencyById: Map<string, Agency>
   );
 }
 
-export function renderQuestionCard(
-  question: IntakeQuestion,
-  agencyById: Map<string, Agency>,
-  questionById: Map<string, IntakeQuestion>,
-): HTMLElement {
+export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
+  const { question, agencyById, questionById, summaryAgencyIds, capabilityContext } = props;
   const hasUnresolved = (question.unresolvedLinks?.length ?? 0) > 0;
+  const capabilityLinks = capabilityContext.linksByQuestionId.get(question.id) ?? [];
+
+  // Computed here as well as inside the panel so the collapsed card can advertise the finding
+  // without the reader having to open every question to go looking for it.
+  const isCandidate =
+    capabilityLinks.length > 0 &&
+    computeQuestionCapabilityInsight(
+      question,
+      capabilityLinks,
+      capabilityContext.profiles,
+      capabilityContext.rideProviderIds,
+    ).unifiedIntakeCandidate;
 
   return h(
     "details",
@@ -168,6 +201,9 @@ export function renderQuestionCard(
       "summary",
       { className: "question-card__summary" },
       h("span", { className: "question-card__text" }, question.text),
+      isCandidate
+        ? h("span", { className: "badge badge--candidate" }, "Unified intake candidate")
+        : undefined,
       hasUnresolved
         ? h("span", { className: "badge badge--warning" }, "Unresolved link")
         : undefined,
@@ -187,8 +223,9 @@ export function renderQuestionCard(
           )
         : undefined,
       renderRequirementsTable(question, agencyById),
-      renderLinks(question, questionById),
-      renderSummary(question, agencyById),
+      renderLinks(question, questionById, capabilityLinks.length > 0),
+      renderCapabilityPanel(question, capabilityContext),
+      renderSummary(question, agencyById, summaryAgencyIds),
     ),
   );
 }

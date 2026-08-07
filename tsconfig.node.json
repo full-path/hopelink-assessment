@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "lib": ["ES2022"],
+    // DOM is here for the tests, not for scripts/: src/app.render.test.ts mounts the real app
+    // into a happy-dom document.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
 
     "moduleResolution": "Bundler",
