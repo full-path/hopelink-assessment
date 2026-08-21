@@ -19,13 +19,23 @@ Every response is HTTP 200 — Apps Script cannot set a status code on a `Conten
 response — so failure is signalled by the `error` key. `src/comments/client.ts` checks for it
 before it checks `response.ok`.
 
-**The POST reply is not reliably readable.** Apps Script answers a cross-origin POST with a 302
-to a single-use `script.googleusercontent.com` URL, and that follow-up request sometimes returns
-404 — even though `doPost` has already run and appended the row. The write succeeds; only the
-acknowledgement is lost. The client handles this by re-reading the store (GET has no such
-problem) and looking for the comment it just sent: found means success, absent means the post
-was genuinely rejected. Do not go looking for a server-side bug if you see that 404 — it is
-Google's redirect, not this script.
+**The POST reply cannot be trusted to carry `doPost`'s output.** Apps Script answers a
+cross-origin POST with a 302, and what comes back from following it varies:
+
+- sometimes `doPost`'s own JSON, which is the intended behaviour;
+- sometimes HTTP 404, from the single-use `script.googleusercontent.com` URL;
+- sometimes `doGet`'s output — the whole comment list — because the redirect was followed as a
+  GET against the script.
+
+**In all three cases `doPost` has already run and appended the row.** The write succeeds; only
+the acknowledgement is unreliable. `src/comments/client.ts` therefore treats the POST reply as
+advisory and settles the question by reading the store: an `error` key is believed outright
+(only `doPost` produces one), a comment list is searched for the comment just sent, and anything
+else triggers a fresh GET. Found means success; absent means genuine rejection, most likely a
+wrong passphrase.
+
+Do not go looking for a server-side bug when you see this. It is Google's redirect, not this
+script, and it is why posting sometimes costs two round trips.
 
 ## Setup
 

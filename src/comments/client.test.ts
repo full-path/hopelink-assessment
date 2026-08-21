@@ -219,4 +219,63 @@ describe("post", () => {
       /unclear whether the comment was saved/,
     );
   });
+
+  it("accepts a comment list as proof of the write when the redirect lands on doGet", async () => {
+    // Observed in the wild: the POST redirect returns doGet's output rather than doPost's, so
+    // the reply is {comments: [...]} with no `comment` key. doGet ran after doPost appended, so
+    // the list itself is proof — and using it saves a second round trip.
+    const saved = { ...draft, timestamp: "2026-08-21T09:30:00.000Z" };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ comments: [saved] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const posted = await client().post(draft, { passphrase: "secret", honeypot: "" });
+
+    expect(posted.timestamp).toBe("2026-08-21T09:30:00.000Z");
+    expect(fetchMock.mock.calls).toHaveLength(1);
+  });
+
+  it("re-reads when the returned list does not contain the comment", async () => {
+    // The list came back without our comment. That is not proof of failure — settle it with a
+    // fresh read rather than guessing from a reply that was never doPost's to begin with.
+    const saved = { ...draft, timestamp: "2026-08-21T09:30:00.000Z" };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ comments: [] }))
+      .mockResolvedValueOnce(jsonResponse({ comments: [saved] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect((await client().post(draft, { passphrase: "s", honeypot: "" })).timestamp).toBe(
+      "2026-08-21T09:30:00.000Z",
+    );
+    expect(fetchMock.mock.calls).toHaveLength(2);
+  });
+
+  it("re-reads when the reply has no recognisable shape at all", async () => {
+    const saved = { ...draft, timestamp: "2026-08-21T09:30:00.000Z" };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ unexpected: true }))
+        .mockResolvedValueOnce(jsonResponse({ comments: [saved] })),
+    );
+
+    await expect(client().post(draft, { passphrase: "s", honeypot: "" })).resolves.toMatchObject({
+      body: draft.body,
+    });
+  });
+
+  it("still reports a rejection when no reply shape shows the comment landing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ comments: [] }))
+        .mockResolvedValueOnce(jsonResponse({ comments: [] })),
+    );
+
+    await expect(client().post(draft, { passphrase: "wrong", honeypot: "" })).rejects.toThrow(
+      /was not saved.*passphrase/i,
+    );
+  });
 });

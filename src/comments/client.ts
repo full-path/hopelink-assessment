@@ -92,6 +92,26 @@ async function readJson(response: Response): Promise<unknown> {
  * test suite stays hermetic, and a build with no `VITE_COMMENTS_ENDPOINT` still renders the whole
  * analysis. Comments are an enhancement; the analysis is the product.
  */
+/**
+ * Newest-first search for a comment matching what was just submitted.
+ *
+ * Newest-first because a retried post can duplicate a comment, and the row just written is the
+ * one whose server timestamp should be displayed.
+ */
+function findPosted(comments: Comment[], draft: NewComment): Comment | undefined {
+  for (const candidate of [...comments].reverse()) {
+    if (
+      candidate.kind === draft.kind &&
+      candidate.id === draft.id &&
+      candidate.author === draft.author &&
+      candidate.body === draft.body
+    ) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
 export function createCommentsClient(endpoint: string | undefined): CommentsClient | null {
   const url = endpoint?.trim();
   if (!url) return null;
@@ -107,14 +127,16 @@ export function createCommentsClient(endpoint: string | undefined): CommentsClie
   };
 
   /**
-   * Did the post actually land? Asked only when the POST reply could not be read.
+   * Did the post actually land? Asked whenever the POST reply fails to acknowledge it.
    *
-   * Apps Script answers a cross-origin POST with a 302 to a single-use
-   * script.googleusercontent.com URL, and that follow-up request sometimes returns 404 even
-   * though `doPost` already ran and appended the row. The write is not in doubt in that case;
-   * only our ability to read the acknowledgement is. GET has no such problem — it is how the
-   * page loads comments in the first place — so re-reading answers the question directly rather
-   * than reporting a failure that did not happen.
+   * Apps Script answers a cross-origin POST with a 302, and what comes back from following it
+   * is not dependable: it may 404, and it may land on `doGet` and return the comment list
+   * instead of `doPost`'s own output. Neither says anything about whether the row was written —
+   * observed behaviour is that `doPost` runs and appends either way.
+   *
+   * So the POST reply is treated as advisory, and this is the authority. GET is reliable — it is
+   * how the page loads comments in the first place — so re-reading answers the question directly
+   * rather than reporting a failure that did not happen.
    */
   const confirmPosted = async (draft: NewComment): Promise<Comment> => {
     let comments: Comment[];
@@ -127,18 +149,8 @@ export function createCommentsClient(endpoint: string | undefined): CommentsClie
       );
     }
 
-    // Newest first: if an earlier attempt duplicated the comment, the last row is the one just
-    // written, and its server timestamp is the one to display.
-    for (const candidate of [...comments].reverse()) {
-      if (
-        candidate.kind === draft.kind &&
-        candidate.id === draft.id &&
-        candidate.author === draft.author &&
-        candidate.body === draft.body
-      ) {
-        return candidate;
-      }
-    }
+    const found = findPosted(comments, draft);
+    if (found) return found;
 
     throw new Error(
       "The comment was not saved. The passphrase may be incorrect — check it and try again.",
@@ -176,19 +188,41 @@ export function createCommentsClient(endpoint: string | undefined): CommentsClie
       }
 
       if (typeof payload !== "object" || payload === null) {
-        throw new Error("Comment store returned an unexpected response.");
-      }
-      const { comment, error } = payload as { comment?: unknown; error?: unknown };
-      // Checked before `response.ok` because every Apps Script reply is HTTP 200: ContentService
-      // cannot set a status code, so the `error` key is the only failure signal there is.
-      if (typeof error === "string") throw new Error(error);
-      if (!response.ok) {
-        throw new Error(`Could not post comment (HTTP ${String(response.status)}).`);
+        return await confirmPosted(draft);
       }
 
-      const parsed = parseComment(comment);
-      if (!parsed) throw new Error("Comment store accepted the comment but returned no record.");
-      return parsed;
+      const { comment, comments, error } = payload as {
+        comment?: unknown;
+        comments?: unknown;
+        error?: unknown;
+      };
+
+      // An explicit error is the one thing the reply says that is worth believing outright: only
+      // `doPost` produces it, so reaching us means the redirect delivered its output intact.
+      // Checked before the HTTP status because every Apps Script reply is 200 — ContentService
+      // cannot set a status code, so `error` is the only failure signal there is. (The status is
+      // not consulted at all below: it carries no information, and every other outcome is settled
+      // by asking the store what it holds.)
+      if (typeof error === "string") throw new Error(error);
+
+      // The acknowledgement we hoped for.
+      const acknowledged = parseComment(comment);
+      if (acknowledged) return acknowledged;
+
+      // Not an acknowledgement but still an answer: when the redirect lands on `doGet` the reply
+      // is the whole comment list, and because `doGet` ran after `doPost` appended, the comment
+      // is in it. Using it here saves a round trip on what is otherwise a successful post.
+      if (Array.isArray(comments)) {
+        const parsed = comments
+          .map(parseComment)
+          .filter((entry): entry is Comment => entry !== null);
+        const found = findPosted(parsed, draft);
+        if (found) return found;
+      }
+
+      // Anything else — an unrecognised shape, or a list without our comment in it — is not
+      // evidence either way. Ask the store directly.
+      return await confirmPosted(draft);
     },
   };
 }
