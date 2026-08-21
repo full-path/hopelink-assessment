@@ -34,8 +34,17 @@ advisory and settles the question by reading the store: an `error` key is believ
 else triggers a fresh GET. Found means success; absent means genuine rejection, most likely a
 wrong passphrase.
 
+GET goes through the same redirect and is subject to the same blips — a load has been observed
+returning 404 from an endpoint that was healthy seconds later. The client retries reads for that
+reason, and never retries writes (a retried POST would duplicate a comment).
+
 Do not go looking for a server-side bug when you see this. It is Google's redirect, not this
 script, and it is why posting sometimes costs two round trips.
+
+If comments do stop loading persistently, check the deployment itself before suspecting the app:
+open the `/exec` URL directly in a browser. JSON means the store is healthy and the problem is
+elsewhere; a 404 there means the deployment is gone or the URL is stale — most often because a
+_new deployment_ was created instead of a new _version_ of the existing one (see above).
 
 ## Setup
 

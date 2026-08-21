@@ -224,9 +224,14 @@ describe("app render", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network down")));
 
     const app = await mountApp();
-    await vi.waitFor(() => {
-      if (!app.querySelector(".comments__error")) throw new Error("error not rendered yet");
-    });
+    // Generous timeout: reads are retried with a backoff before the failure is reported, so this
+    // deliberately takes about a second. See READ_ATTEMPTS in src/comments/client.ts.
+    await vi.waitFor(
+      () => {
+        if (!app.querySelector(".comments__error")) throw new Error("error not rendered yet");
+      },
+      { timeout: 5000 },
+    );
 
     expect(app.querySelector(".comments__error")?.textContent).toContain("Network down");
     // The product still works: a dead comment store must not cost the reader the analysis.

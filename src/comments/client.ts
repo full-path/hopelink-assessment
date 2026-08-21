@@ -10,6 +10,19 @@ import type { Comment, CommentTargetKind, NewComment } from "./types";
 
 const VALID_KINDS: readonly CommentTargetKind[] = ["question", "capability"];
 
+/**
+ * How many times a *read* is attempted before its failure is reported, and how long to pause
+ * between tries (multiplied by the attempt number).
+ *
+ * Reads are retried because following Apps Script's redirect is unreliable: the same mechanism
+ * has been observed returning 404 and returning the wrong handler's output. A transient 404 on
+ * load would otherwise replace every comment on the page with an error.
+ *
+ * Writes are deliberately NOT retried — see `post`.
+ */
+const READ_ATTEMPTS = 3;
+const READ_RETRY_DELAY_MS = 300;
+
 /** Matches the server-side cap in Comments.gs; checked here too so a typo fails fast and local. */
 export const MAX_BODY_LENGTH = 2000;
 export const MAX_AUTHOR_LENGTH = 120;
@@ -118,13 +131,36 @@ export function createCommentsClient(endpoint: string | undefined): CommentsClie
 
   // Arrow consts rather than function declarations: TypeScript does not narrow `url` to a
   // definite string inside a hoisted declaration, only inside a closure created after the guard.
-  const listComments = async (): Promise<Comment[]> => {
-    const response = await fetch(url, { method: "GET" });
-    if (!response.ok) {
-      throw new Error(`Could not load comments (HTTP ${String(response.status)}).`);
+
+  /**
+   * Fetches the raw store payload, retrying transport failures.
+   *
+   * Only the transport is inside the retry: a store that answers with a structured `{error: ...}`
+   * has given a definitive answer, and re-asking will not change it. That parsing happens in
+   * `listComments`, outside this loop.
+   */
+  const readStore = async (): Promise<unknown> => {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= READ_ATTEMPTS; attempt++) {
+      try {
+        const response = await fetch(url, { method: "GET" });
+        if (!response.ok) {
+          throw new Error(`Could not load comments (HTTP ${String(response.status)}).`);
+        }
+        return await readJson(response);
+      } catch (error) {
+        lastError = error;
+        if (attempt < READ_ATTEMPTS) {
+          await new Promise((resolve) => setTimeout(resolve, READ_RETRY_DELAY_MS * attempt));
+        }
+      }
     }
-    return parseCommentList(await readJson(response));
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
   };
+
+  const listComments = async (): Promise<Comment[]> => parseCommentList(await readStore());
 
   /**
    * Did the post actually land? Asked whenever the POST reply fails to acknowledge it.
@@ -160,6 +196,13 @@ export function createCommentsClient(endpoint: string | undefined): CommentsClie
   return {
     list: listComments,
 
+    /**
+     * Posts a comment. Never retried, however it fails.
+     *
+     * A POST that looks like it failed may well have appended the row — that is the whole reason
+     * `confirmPosted` exists — so a retry here would duplicate comments rather than recover from
+     * anything. Reads are retried instead, which is safe because they change nothing.
+     */
     async post(draft: NewComment, options: PostOptions): Promise<Comment> {
       if (draft.body.length > MAX_BODY_LENGTH) {
         throw new Error(`Comment is too long (limit ${String(MAX_BODY_LENGTH)} characters).`);

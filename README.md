@@ -152,6 +152,11 @@ ever need to become permanent annotations, the sheet exports to CSV and joins `/
   GET, which is reliable. Found means success; absent means genuine rejection. This is why
   posting sometimes costs two round trips. The HTTP status is not consulted at all — every Apps
   Script reply is 200, so it carries no information.
+- **Reads are retried; writes never are.** The same unreliable redirect affects GET, and a
+  transient 404 there would replace every comment on the page with an error, so `list()` retries
+  a few times with a short backoff. `post()` does not retry under any circumstance — a
+  failed-looking write may already have appended the row, so a retry would duplicate comments
+  rather than recover anything. It confirms by re-reading instead.
 - **The passphrase is never compiled into the bundle.** Anything in a `VITE_*` variable ships in
   plaintext, which would make the gate decorative. The reader types it; it is remembered in
   `localStorage` and cleared automatically when the server rejects it.

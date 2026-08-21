@@ -102,9 +102,14 @@ describe("list", () => {
   it("explains an HTML response instead of leaking a JSON parse error", async () => {
     // The realistic failure: an Apps Script deployed with the wrong access setting serves a
     // Google sign-in page as HTTP 200 HTML. "Unexpected token <" would help nobody diagnose that.
+    // A fresh Response per call: a body can only be read once, and reads are retried.
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response("<html>Sign in to continue</html>", { status: 200 })),
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(new Response("<html>Sign in to continue</html>", { status: 200 })),
+        ),
     );
     await expect(client().list()).rejects.toThrow(/non-JSON response/);
   });
@@ -277,5 +282,57 @@ describe("post", () => {
     await expect(client().post(draft, { passphrase: "wrong", honeypot: "" })).rejects.toThrow(
       /was not saved.*passphrase/i,
     );
+  });
+
+  it("retries a transient read failure instead of blanking the page", async () => {
+    // Observed in the wild: a GET that normally succeeds came back 404 from the same redirect
+    // layer that misbehaves on POST. One blip must not replace every comment with an error.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("<html>Not found</html>", { status: 404 }))
+      .mockResolvedValueOnce(
+        jsonResponse({ comments: [{ kind: "question", id: "x", body: "b" }] }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await client().list()).toHaveLength(1);
+    expect(fetchMock.mock.calls).toHaveLength(2);
+  });
+
+  it("gives up and reports after repeated read failures", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(new Response("nope", { status: 404 })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(client().list()).rejects.toThrow(/HTTP 404/);
+    expect(fetchMock.mock.calls).toHaveLength(3);
+  });
+
+  it("does not retry a structured error from the store", async () => {
+    // A store that answers "Sheet not found" has given a definitive answer; re-asking is noise.
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ error: "Sheet not found" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(client().list()).rejects.toThrow("Sheet not found");
+    expect(fetchMock.mock.calls).toHaveLength(1);
+  });
+
+  it("never retries a post, because a failed-looking write may already have landed", async () => {
+    // Retrying here would duplicate comments. The recovery path is confirmPosted, not a re-POST.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("<html>Not found</html>", { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ comments: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(client().post(draft, { passphrase: "s", honeypot: "" })).rejects.toThrow(
+      /was not saved/,
+    );
+
+    const posts = fetchMock.mock.calls.filter(
+      (call) => (call as [string, RequestInit])[1].method === "POST",
+    );
+    expect(posts).toHaveLength(1);
   });
 });
