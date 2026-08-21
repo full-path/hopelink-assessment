@@ -149,14 +149,34 @@ interface QuestionCapabilityLink {
 capabilities are meaningful for the former and a category error for the latter — without the
 distinction the capabilities view would report ORCA and SAP as gaps in the survey.
 
+```typescript
+// --- Reader comments (persisted; see Section 5, requirement 8) ---
+
+type CommentTargetKind = "question" | "capability";
+
+interface Comment {
+  kind: CommentTargetKind;
+  id: string;             // an IntakeQuestion.id or a Capability.id
+  timestamp: string;      // ISO 8601, stamped server-side
+  author: string;
+  body: string;
+  targetLabel: string;    // question text / capability label as it read when written
+}
+```
+
+`Comment.targetLabel` is redundant with `id` while the dataset is unchanged, and that is the
+point: question ids are slugs of question text, so rewording a question breaks every comment on
+it. Keeping the label means an orphan can still be displayed against the thing it was about
+rather than as a bare slug.
+
 `QuestionCapabilityLink` stores question *text* rather than an id so it can be re-resolved against
 whatever question set is displayed; an uploaded CSV that renames a question loses that link and
 has it reported as unmatched, rather than rendering something stale.
 
 Unresolved upstream/downstream references (Section 3) are preserved in `unresolvedLinks` and
 rendered in the UI as flagged/unlinked rather than silently dropped. Hiding known-bad data is worse
-than displaying it as unresolved. The same rule governs `unknown` capability values and unmatched
-question/capability links.
+than displaying it as unresolved. The same rule governs `unknown` capability values, unmatched
+question/capability links, and comments whose target is not in the displayed dataset.
 
 ## 5. Functional Requirements
 
@@ -185,6 +205,17 @@ question/capability links.
    ask about it is the strongest case for adding it. Reporting gaps are named rather than
    flattened: "surveyed and answered nothing", "never surveyed", and "operates no vehicles, so
    the question does not apply" are three different things and appear as three different things.
+8. Reader comments on an individual intake question or provider capability, so the Advisory
+   Committee and pilot agencies can respond in the context that prompted the response rather than
+   in a separate email thread. Persisted to a Google Sheet via an Apps Script web app
+   (`/apps-script/`), gated by a shared passphrase the reader types (never compiled into the
+   bundle), append-only from the app, moderated in the sheet. A comment whose target no longer
+   exists in the displayed dataset — because a question was reworded, or because an uploaded
+   preview drops it — is surfaced as an orphan, never silently reattached or hidden, per the rule
+   in Section 4. Commenting is **optional at build time**: with `VITE_COMMENTS_ENDPOINT` unset the
+   whole application renders normally with commenting simply absent, and a dead or misconfigured
+   endpoint degrades to an error inside the comment areas alone. The analysis is the product;
+   comments are an enhancement and may never delay, block, or blank it.
 
 ## 6. Non-Functional Requirements / Code Quality Standards
 
@@ -207,6 +238,14 @@ question/capability links.
   part least likely to be caught by visual inspection. `src/app.render.test.ts` additionally mounts
   the whole app against the committed data, because a throw inside `render()` yields a blank page
   that every unit test would still pass.
+- The comment layer is tested at both ends: `src/comments/resolve.test.ts` for target grouping and
+  orphan detection (including the reword case, which must orphan rather than reattach), and
+  `src/comments/client.test.ts` for the wire contract — notably that the POST stays a CORS simple
+  request, since Apps Script does not answer preflight and the resulting failure looks like a
+  generic network error. The render test additionally asserts that a comment body containing
+  markup renders as literal text: comment bodies are the only **stored** user-generated content in
+  the system, so a raw-HTML sink in `commentThread.ts` would be stored XSS rather than a cosmetic
+  bug.
 - ESLint + Prettier, checked in.
 - No unused dependencies, no scaffolding boilerplate left over from a starter template.
 - Semantic HTML and basic ARIA attributes on interactive elements — this is a tool for an
@@ -221,9 +260,14 @@ question/capability links.
 - CSV parsing: `papaparse`, used only inside the shared normalization module. Since that module
   also powers the in-browser upload preview (Section 5, requirement 6), papaparse ships in the
   client bundle — it is a runtime dependency, not a dev-only one.
-- No backend. No runtime database. Output is static HTML/CSS/JS plus two generated JSON files
-  (`questions.json`, `capabilities.json`). Uploaded CSVs are processed client-side only and never
-  leave the browser.
+- No backend **for the intake and capability data**. Output is static HTML/CSS/JS plus two
+  generated JSON files (`questions.json`, `capabilities.json`). Uploaded CSVs are processed
+  client-side only and never leave the browser.
+- **One exception, added for comments (Section 5, requirement 8):** a Google Apps Script web app
+  bound to a Google Sheet, checked into `/apps-script/`. It is the only piece of the system that
+  persists anything and the only piece that does not deploy from CI. It stores comments and
+  nothing else — the analysis itself never depends on it, and the whole app renders normally when
+  the endpoint is unset or unreachable.
 - UI: plain TypeScript + DOM. Settled at implementation time (Section 11, item 4): the component
   tree never became stateful enough to warrant Preact. The two-view switcher is a hand-rolled ARIA
   tablist rather than a routing library, per the rule above.
@@ -263,9 +307,17 @@ question/capability links.
 /src/capabilities.ts                  # capability variance analysis (view over the data)
 /src/capabilities.test.ts
 /src/app.render.test.ts               # whole-app render smoke test (happy-dom)
+/src/comments/types.ts                # the comment data contract
+/src/comments/client.ts               # transport to the Apps Script store (the only network I/O)
+/src/comments/resolve.ts              # comments -> targets in the active dataset; orphan detection
+/src/comments/resolve.test.ts
+/src/comments/client.test.ts
 /src/main.ts
 /src/components/
 /src/styles/
+/apps-script/Comments.gs              # the comment store; deployed by hand, checked in for review
+/apps-script/README.md                # how to deploy and moderate it
+/src/vite-env.d.ts                    # typing for VITE_* build-time configuration
 /.github/workflows/deploy.yml
 README.md
 CLAUDE.md
@@ -275,7 +327,11 @@ CLAUDE.md
 
 - Persisting an uploaded CSV. Upload exists (Section 5, requirement 6) but is a session-only,
   in-browser preview — no server-side storage, no write-back to the repo, no sharing of an
-  uploaded dataset between users or sessions.
+  uploaded dataset between users or sessions. **This remains true and is unaffected by comments:**
+  comments persist, uploaded datasets still do not, and a comment is never written against an
+  uploaded preview's data in any way that outlives the session.
+- Editing or deleting a comment from the UI, threaded replies, and notifications. Moderation
+  happens in the Google Sheet (`apps-script/README.md`); the app is append-only.
 - Authentication or per-agency accounts.
 - Persisting any rider or PII data — this tool operates on aggregate policy metadata only, never
   individual rider records. It has no relationship to the Vault, Dashboard, or Workflow Tracker
@@ -327,7 +383,15 @@ unless corrected:
     hearing issues or sight issues" → Interpretation Support, "Do you require any special
     assistance (extra load time, comfort pet, etc)" → Allows service animals, "How many riders to
     expect" → Allows for companions. Review the file before relying on the analysis it drives.
-11. **"Varies" is judged only on providers that answered**, with a minimum of two responses before
+11. **Comments are attributable free text from named agency staff.** They are not rider PII —
+    Section 10's prohibition is intact — but they are on-the-record statements about an agency's
+    own intake practice, stored in a Google Sheet outside this repository, behind a shared
+    passphrase rather than per-person authentication. The endpoint URL is public by construction
+    (it ships in the client bundle). Confirm participating agencies are comfortable commenting
+    under those terms before the passphrase is circulated. This is the same question Section 11
+    item 3 asks about the committed CSVs, but with a lower answer threshold: a CSV is aggregate
+    policy data, a comment is a person's opinion with their name on it.
+12. **"Varies" is judged only on providers that answered**, with a minimum of two responses before
     any verdict is offered. With three agencies returning entirely blank surveys and two never
     surveyed, several verdicts rest on three or four responses. The counts are displayed alongside
     every verdict so a reader can weigh them, but the analysis will firm up considerably if the

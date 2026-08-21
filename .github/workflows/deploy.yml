@@ -27,6 +27,12 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+        env:
+          # A repository *variable*, not a secret: this URL is compiled into the client bundle in
+          # plaintext, so calling it a secret would imply a protection that does not exist.
+          # Unset is a valid state — the site builds and deploys with commenting disabled.
+          # See apps-script/README.md.
+          VITE_COMMENTS_ENDPOINT: ${{ vars.COMMENTS_ENDPOINT }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

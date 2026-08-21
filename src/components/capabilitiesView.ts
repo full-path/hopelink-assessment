@@ -7,6 +7,12 @@ import {
   type VarianceVerdict,
 } from "../capabilities";
 import { VARIANCE_LABELS, renderCapabilityValue } from "./capabilityFormat";
+import {
+  commentCountFor,
+  renderCommentOrphanNotice,
+  renderCommentThreadFor,
+  type CommentContext,
+} from "./commentThread";
 
 export interface CapabilitiesViewProps {
   agencies: Agency[];
@@ -16,6 +22,7 @@ export interface CapabilitiesViewProps {
   profiles: AgencyCapabilityProfile[];
   /** Map entries whose question text matched nothing in the active dataset. */
   unmatchedLinkTexts: string[];
+  commentContext: CommentContext;
 }
 
 const COVERAGE_LABELS: Record<CoverageStatus, string> = {
@@ -62,8 +69,13 @@ function renderVarianceSection(props: CapabilitiesViewProps): HTMLElement {
     h(
       "ul",
       { className: "cap-variance-list" },
-      ...variances.map(({ capability, variance }) =>
-        h(
+      ...variances.map(({ capability, variance }) => {
+        // The <li> keeps the .cap-variance class: it is the row, and the app render test counts
+        // these to confirm every capability is listed. The thread nests inside it.
+        const target = { kind: "capability", id: capability.id } as const;
+        const commentCount = commentCountFor(props.commentContext, target);
+
+        return h(
           "li",
           { className: `cap-variance cap-variance--${variance.verdict}` },
           h("span", { className: "cap-variance__label" }, capability.label),
@@ -73,8 +85,22 @@ function renderVarianceSection(props: CapabilitiesViewProps): HTMLElement {
             { className: "cap-variance__count" },
             `${String(variance.answered)} of ${String(props.profiles.length)} surveyed providers answered`,
           ),
-        ),
-      ),
+          h(
+            "details",
+            { className: "cap-variance__comments" },
+            h(
+              "summary",
+              {},
+              commentCount === 0
+                ? "Comments"
+                : commentCount === 1
+                  ? "Comments (1)"
+                  : `Comments (${String(commentCount)})`,
+            ),
+            renderCommentThreadFor(props.commentContext, target, capability.label),
+          ),
+        );
+      }),
     ),
   );
 }
@@ -219,6 +245,10 @@ export function renderCapabilitiesView(props: CapabilitiesViewProps): HTMLElemen
             "Those links are not shown on any question.",
         )
       : undefined,
+    renderCommentOrphanNotice(
+      props.commentContext.resolved.orphansByKind.get("capability") ?? [],
+      "capability",
+    ),
     renderVarianceSection(props),
     renderMatrix(props, agencyById),
     renderCoverageSection(props, agencyById),

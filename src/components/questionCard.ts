@@ -4,6 +4,7 @@ import { LEVEL_LABELS } from "./filters";
 import { computeSummary } from "../summary";
 import { computeQuestionCapabilityInsight } from "../capabilities";
 import { renderCapabilityPanel, type CapabilityContext } from "./capabilityPanel";
+import { commentCountFor, renderCommentThreadFor, type CommentContext } from "./commentThread";
 
 export interface QuestionCardProps {
   question: IntakeQuestion;
@@ -17,6 +18,7 @@ export interface QuestionCardProps {
    */
   summaryAgencyIds: string[];
   capabilityContext: CapabilityContext;
+  commentContext: CommentContext;
 }
 
 function agencyName(agencyById: Map<string, Agency>, agencyId: string): string {
@@ -179,7 +181,16 @@ function renderSummary(
 }
 
 export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
-  const { question, agencyById, questionById, summaryAgencyIds, capabilityContext } = props;
+  const {
+    question,
+    agencyById,
+    questionById,
+    summaryAgencyIds,
+    capabilityContext,
+    commentContext,
+  } = props;
+  const commentTarget = { kind: "question", id: question.id } as const;
+  const commentCount = commentCountFor(commentContext, commentTarget);
   const hasUnresolved = (question.unresolvedLinks?.length ?? 0) > 0;
   const capabilityLinks = capabilityContext.linksByQuestionId.get(question.id) ?? [];
 
@@ -210,6 +221,15 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
       question.dataQualityNote
         ? h("span", { className: "badge badge--note" }, "Data quality note")
         : undefined,
+      // Surfaced on the collapsed line so a reader can see there is discussion without opening
+      // all 42 cards to go looking for it.
+      commentCount > 0
+        ? h(
+            "span",
+            { className: "badge badge--comments" },
+            commentCount === 1 ? "1 comment" : `${String(commentCount)} comments`,
+          )
+        : undefined,
     ),
     h(
       "div",
@@ -226,6 +246,7 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
       renderLinks(question, questionById, capabilityLinks.length > 0),
       renderCapabilityPanel(question, capabilityContext),
       renderSummary(question, agencyById, summaryAgencyIds),
+      renderCommentThreadFor(commentContext, commentTarget, question.text),
     ),
   );
 }

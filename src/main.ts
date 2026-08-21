@@ -12,6 +12,10 @@ import { renderQuestionCard } from "./components/questionCard";
 import { renderCapabilitiesView } from "./components/capabilitiesView";
 import { focusActiveTab, renderViewTabs, type ViewId } from "./components/viewTabs";
 import type { CapabilityContext } from "./components/capabilityPanel";
+import { createCommentsClient } from "./comments/client";
+import { resolveComments } from "./comments/resolve";
+import type { Comment, CommentState } from "./comments/types";
+import { renderCommentOrphanNotice, type CommentContext } from "./components/commentThread";
 
 const BUNDLED = bundledData as NormalizedData;
 const CAPABILITIES = bundledCapabilities as CapabilityData;
@@ -22,11 +26,18 @@ const DEFAULT_FILTERS: FilterState = {
   capability: "all",
 };
 
+/**
+ * Null when `VITE_COMMENTS_ENDPOINT` is unset, which disables commenting without affecting
+ * anything else. See `createCommentsClient` — that is a supported build, not a broken one.
+ */
+const commentsClient = createCommentsClient(import.meta.env.VITE_COMMENTS_ENDPOINT);
+
 let data: NormalizedData = BUNDLED;
 let source: DataSource = { kind: "bundled" };
 let uploadError: string | null = null;
 let state: FilterState = DEFAULT_FILTERS;
 let view: ViewId = "questions";
+let commentState: CommentState = commentsClient ? { status: "loading" } : { status: "disabled" };
 /** Set when a re-render was triggered by keyboard tab navigation, so focus can follow the tab. */
 let restoreTabFocus = false;
 
@@ -47,6 +58,37 @@ async function handleUpload(file: File): Promise<void> {
     // Keep whatever dataset is currently displayed; just surface why the upload failed.
     uploadError = error instanceof Error ? error.message : String(error);
     render();
+  }
+}
+
+/**
+ * Comments arrive after first paint, so this follows the same shape as `setData`: mutate module
+ * state, then re-render. The analysis renders immediately from bundled data and does not wait on
+ * the network — a slow or dead comment store must never delay or blank the actual product.
+ */
+async function loadComments(): Promise<void> {
+  if (!commentsClient) return;
+  try {
+    commentState = { status: "ready", comments: await commentsClient.list() };
+  } catch (error) {
+    commentState = {
+      status: "error",
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+  render();
+}
+
+/**
+ * Folds a just-posted comment into module state without re-rendering.
+ *
+ * The thread already appended it to the open <details> it lives in; a full re-render here would
+ * collapse that card out from under the reader. Keeping state in step matters anyway, so the
+ * comment survives the next re-render triggered by something else (a filter change, a tab switch).
+ */
+function recordPostedComment(comment: Comment): void {
+  if (commentState.status === "ready") {
+    commentState = { status: "ready", comments: [...commentState.comments, comment] };
   }
 }
 
@@ -117,6 +159,7 @@ function renderQuestionsPanel(
   agencyById: Map<string, Agency>,
   intakeAgencies: Agency[],
   context: CapabilityContext,
+  comments: CommentContext,
 ): HTMLElement {
   const questionById = new Map<string, IntakeQuestion>(questions.map((q) => [q.id, q]));
   const filtered = questions.filter((question) => questionMatches(question, context));
@@ -125,6 +168,7 @@ function renderQuestionsPanel(
   return h(
     "div",
     {},
+    renderCommentOrphanNotice(comments.resolved.orphansByKind.get("question") ?? [], "question"),
     renderFilters(intakeAgencies, state, (next) => {
       state = next;
       render();
@@ -145,6 +189,7 @@ function renderQuestionsPanel(
               questionById,
               summaryAgencyIds,
               capabilityContext: context,
+              commentContext: comments,
             }),
           )
         : [h("p", { className: "empty-note" }, "No questions match the current filters.")]),
@@ -167,6 +212,16 @@ function render(): void {
   const intakeAgencies = agencies.filter((agency) => agencyIdsWithIntakeData.has(agency.id));
 
   const { context, unmatchedLinkTexts } = buildCapabilityContext(questions, agencies, agencyById);
+
+  const comments: CommentContext = {
+    state: commentState,
+    resolved: resolveComments(commentState.status === "ready" ? commentState.comments : [], {
+      questionIds: new Set(questions.map((question) => question.id)),
+      capabilityIds: new Set(CAPABILITIES.capabilities.map((capability) => capability.id)),
+    }),
+    client: commentsClient,
+    onPosted: recordPostedComment,
+  };
 
   const dataSourceEl = renderDataSourceBar({
     source,
@@ -192,13 +247,14 @@ function render(): void {
       className: "view-panel",
     },
     view === "questions"
-      ? renderQuestionsPanel(questions, agencyById, intakeAgencies, context)
+      ? renderQuestionsPanel(questions, agencyById, intakeAgencies, context, comments)
       : renderCapabilitiesView({
           agencies,
           questions,
           capabilities: CAPABILITIES.capabilities,
           profiles: context.profiles,
           unmatchedLinkTexts,
+          commentContext: comments,
         }),
   );
 
@@ -227,3 +283,4 @@ function render(): void {
 }
 
 render();
+void loadComments();

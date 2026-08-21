@@ -11,10 +11,14 @@ concrete: a capability every provider offers equally cannot route a rider anywhe
 about it does no work — while a capability that differs between providers, asked about by only one
 of them, is the strongest candidate for a shared intake question.
 
-No backend, no build-time secrets, no database: the CSVs in `/data` are normalized at build time
-into typed JSON files that the static frontend loads as its default dataset. The same
-normalization logic also runs in the browser, so a viewer can upload a replacement CSV and
-preview it in place — see "Previewing a replacement CSV" below.
+The CSVs in `/data` are normalized at build time into typed JSON files that the static frontend
+loads as its default dataset. The same normalization logic also runs in the browser, so a viewer
+can upload a replacement CSV and preview it in place — see "Previewing a replacement CSV" below.
+
+Readers can also leave comments on an individual question or capability. That is the one part of
+the system that persists anything, and it is optional: with no comment endpoint configured the
+site builds, deploys, and works exactly as it did before, minus the comment boxes. See
+"Comments" below.
 
 ## The two views
 
@@ -110,6 +114,61 @@ Each agency also carries a `kind` — `ride_provider`, `fare_program`, or `trave
 exists so the capabilities view can tell "this provider was never surveyed" apart from "this is a
 fare program and has no vehicles to describe". Set it when you add an agency.
 
+## Comments
+
+Readers can comment on any individual intake question (in the Intake questions view) or any
+capability (in the Provider capabilities view). Comments are stored in a Google Sheet behind a
+Google Apps Script web app.
+
+**Setup, moderation, and the operational caveats are in [`apps-script/README.md`](apps-script/README.md).**
+The script itself is checked in at `apps-script/Comments.gs`; it holds no secret.
+
+The design in one paragraph: the Sheet was chosen over a database because this project already
+treats hand-editable tabular files as its sources of record, and because the people who moderate
+comments — Hopelink program staff — work in spreadsheets rather than in dashboards. If comments
+ever need to become permanent annotations, the sheet exports to CSV and joins `/data`.
+
+### What a developer needs to know
+
+- **Commenting is optional at build time.** `src/main.ts` reads `VITE_COMMENTS_ENDPOINT`; when it
+  is unset, `createCommentsClient` returns `null` and commenting is off. That is a supported
+  state, not a broken one — local development and the test suite both run that way, and `npm test`
+  makes no network request. A dead or misconfigured endpoint degrades to an error inside the
+  comment areas only. **The analysis is the product; comments must never delay, block, or blank
+  it.**
+- **The POST must stay a CORS "simple request"** — `Content-Type: text/plain;charset=utf-8`, no
+  custom headers. Apps Script web apps do not answer `OPTIONS` preflight, so an
+  `application/json` POST is rejected by the browser before it is ever sent, and the failure
+  surfaces as a generic network error that points nowhere near the cause. `src/comments/client.ts`
+  documents this at the call site and `client.test.ts` asserts it.
+- **Every Apps Script response is HTTP 200.** `ContentService` cannot set a status code, so
+  failure is signalled by an `error` key in the JSON body. The client checks for it _before_ it
+  checks `response.ok`.
+- **The passphrase is never compiled into the bundle.** Anything in a `VITE_*` variable ships in
+  plaintext, which would make the gate decorative. The reader types it; it is remembered in
+  `localStorage` and cleared automatically when the server rejects it.
+- **A comment whose target no longer exists is shown as an orphan**, not dropped and not
+  reattached. Question ids are slugs of question text, so rewording a question in the CSV — or
+  uploading a preview that renames it — breaks the link. This is the same discipline the app
+  already applies to unresolved upstream/downstream references and unmatched question/capability
+  links (CLAUDE.md §4).
+- **`src/components/commentThread.ts` renders the only stored user-generated content in the app.**
+  Everything reaches the DOM through `h()` and `Node.append()`, which create text nodes. Do not
+  introduce `innerHTML` or any raw-HTML sink in that file.
+
+### Known limits
+
+Stated plainly because they are design decisions, not oversights:
+
+- The endpoint is **public** — its URL is visible in the site's JavaScript. The shared passphrase
+  raises the cost of drive-by spam but is reusable and shared; it is a gate, not authentication.
+  The sheet's `Hidden` column is the remedy if something unwanted gets through.
+- Comments are **append-only from the app**. Editing, hiding, and deleting all happen in the
+  sheet. There is no threading and there are no notifications — those need real accounts, and this
+  deployment has none.
+- Comments are attributable free text typed by agency staff. They are not rider PII, but they are
+  on-the-record statements about an agency's own practice. See CLAUDE.md §11 item 11.
+
 ## Testing
 
 ```bash
@@ -124,9 +183,16 @@ Covers the part of the system most likely to silently produce wrong output:
   capability value parsing, and question/capability link resolution against a changed question set.
 - **Analysis** (`src/capabilities.test.ts`) — the variance verdicts, and specifically that blank
   answers can never turn a uniform capability into a varying one or vice versa.
+- **Comments** (`src/comments/`) — `resolve.test.ts` covers target grouping and orphan detection,
+  including the case that matters most: rewording a question must orphan its comments visibly, not
+  reattach them to a neighbour. `client.test.ts` covers the wire contract, notably that the POST
+  stays a CORS _simple request_ (see "Comments" below for why that is load-bearing).
 - **Render** (`src/app.render.test.ts`) — mounts the whole app against the committed data in
-  `happy-dom` and drives both tabs and the filters. Because the UI is hand-rolled DOM, a throw
-  inside `render()` produces a blank page that every other test would still pass.
+  `happy-dom` and drives both tabs, the filters, and the comment thread. Because the UI is
+  hand-rolled DOM, a throw inside `render()` produces a blank page that every other test would
+  still pass. It also asserts that a comment body containing markup renders as literal text —
+  comment bodies are the only _stored_ user-generated content here, so that is the difference
+  between an escaping bug and stored XSS.
 
 ## Architecture notes
 
@@ -175,3 +241,7 @@ advance.
 
 To enable Pages for this repo: **Settings → Pages → Source → GitHub Actions** (one-time, done by a
 repo admin in the GitHub UI — not something this workflow file can do on its own).
+
+The workflow passes `VITE_COMMENTS_ENDPOINT` from the `COMMENTS_ENDPOINT` repository **variable**
+(Settings → Secrets and variables → Actions → Variables). If it is unset the build still succeeds
+and deploys — commenting is simply absent from the deployed site.
