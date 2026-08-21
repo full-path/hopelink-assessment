@@ -9,6 +9,7 @@ import {
 import { VARIANCE_LABELS, renderCapabilityValue } from "./capabilityFormat";
 import {
   commentCountFor,
+  commentCountSummary,
   renderCommentOrphanNotice,
   renderCommentThreadFor,
   type CommentContext,
@@ -73,7 +74,9 @@ function renderVarianceSection(props: CapabilitiesViewProps): HTMLElement {
         // The <li> keeps the .cap-variance class: it is the row, and the app render test counts
         // these to confirm every capability is listed. The thread nests inside it.
         const target = { kind: "capability", id: capability.id } as const;
-        const commentCount = commentCountFor(props.commentContext, target);
+        // Kept current by the thread — posting updates the DOM in place, so a count rendered
+        // once here would stay stale until some unrelated re-render.
+        const commentSummary = commentCountSummary(commentCountFor(props.commentContext, target));
 
         return h(
           "li",
@@ -88,16 +91,13 @@ function renderVarianceSection(props: CapabilitiesViewProps): HTMLElement {
           h(
             "details",
             { className: "cap-variance__comments" },
-            h(
-              "summary",
-              {},
-              commentCount === 0
-                ? "Comments"
-                : commentCount === 1
-                  ? "Comments (1)"
-                  : `Comments (${String(commentCount)})`,
+            commentSummary.element,
+            renderCommentThreadFor(
+              props.commentContext,
+              target,
+              capability.label,
+              commentSummary.update,
             ),
-            renderCommentThreadFor(props.commentContext, target, capability.label),
           ),
         );
       }),

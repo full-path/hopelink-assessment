@@ -220,6 +220,12 @@ body {
   border: 1px solid var(--color-border);
 }
 
+/* The badge element is always present so the thread can fill it in when a comment is posted
+   without a re-render. With no comments it has no text, and an empty badge should not show. */
+.badge--comments:empty {
+  display: none;
+}
+
 .requirements-table {
   width: 100%;
   border-collapse: collapse;

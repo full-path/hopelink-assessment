@@ -4,7 +4,12 @@ import { LEVEL_LABELS } from "./filters";
 import { computeSummary } from "../summary";
 import { computeQuestionCapabilityInsight } from "../capabilities";
 import { renderCapabilityPanel, type CapabilityContext } from "./capabilityPanel";
-import { commentCountFor, renderCommentThreadFor, type CommentContext } from "./commentThread";
+import {
+  commentCountBadge,
+  commentCountFor,
+  renderCommentThreadFor,
+  type CommentContext,
+} from "./commentThread";
 
 export interface QuestionCardProps {
   question: IntakeQuestion;
@@ -190,7 +195,9 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
     commentContext,
   } = props;
   const commentTarget = { kind: "question", id: question.id } as const;
-  const commentCount = commentCountFor(commentContext, commentTarget);
+  // Built up front and kept current by the thread: posting updates the DOM in place rather than
+  // re-rendering, so this badge would otherwise sit stale. Empty text hides it (see main.css).
+  const commentBadge = commentCountBadge(commentCountFor(commentContext, commentTarget));
   const hasUnresolved = (question.unresolvedLinks?.length ?? 0) > 0;
   const capabilityLinks = capabilityContext.linksByQuestionId.get(question.id) ?? [];
 
@@ -223,13 +230,7 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
         : undefined,
       // Surfaced on the collapsed line so a reader can see there is discussion without opening
       // all 42 cards to go looking for it.
-      commentCount > 0
-        ? h(
-            "span",
-            { className: "badge badge--comments" },
-            commentCount === 1 ? "1 comment" : `${String(commentCount)} comments`,
-          )
-        : undefined,
+      commentBadge.element,
     ),
     h(
       "div",
@@ -246,7 +247,7 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
       renderLinks(question, questionById, capabilityLinks.length > 0),
       renderCapabilityPanel(question, capabilityContext),
       renderSummary(question, agencyById, summaryAgencyIds),
-      renderCommentThreadFor(commentContext, commentTarget, question.text),
+      renderCommentThreadFor(commentContext, commentTarget, question.text, commentBadge.update),
     ),
   );
 }

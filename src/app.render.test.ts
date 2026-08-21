@@ -43,8 +43,12 @@ async function mountAppWithComments(comments: StubComment[]): Promise<HTMLElemen
 
   const app = await mountApp();
   // The comment fetch resolves after first paint and re-renders; wait for that second pass.
+  // Keyed off the loading note rather than a rendered comment, so an empty list still settles.
   await vi.waitFor(() => {
-    if (!app.querySelector(".comment")) throw new Error("comments not rendered yet");
+    const loading = [...app.querySelectorAll(".comments .empty-note")].some((note) =>
+      note.textContent.includes("Loading"),
+    );
+    if (loading) throw new Error("comments still loading");
   });
   return app;
 }
@@ -184,9 +188,10 @@ describe("app render", () => {
     expect(card?.querySelector(".comment-form")).not.toBeNull();
     expect(card?.querySelector(".badge--comments")?.textContent).toBe("1 comment");
 
-    // A question nobody commented on gets a thread and a form, but no badge.
+    // A question nobody commented on gets a thread and a form. Its badge element exists — the
+    // thread fills it in on a successful post — but is empty, and CSS hides an empty badge.
     const other = app.querySelector("#question-income");
-    expect(other?.querySelector(".badge--comments")).toBeNull();
+    expect(other?.querySelector(".badge--comments")?.textContent).toBe("");
     expect(other?.querySelector(".comment-form")).not.toBeNull();
   });
 
@@ -227,5 +232,105 @@ describe("app render", () => {
     // The product still works: a dead comment store must not cost the reader the analysis.
     expect(app.querySelectorAll(".question-card").length).toBeGreaterThan(20);
     expect(app.querySelector(".result-count")?.textContent).toMatch(/Showing \d+ of \d+/);
+  });
+
+  it("updates every count in place when a comment is posted, without collapsing the card", async () => {
+    // Posting deliberately does not re-render — that would collapse the <details> the reader is
+    // typing in — so each count has to be updated by hand. This is what regressed once already.
+    const app = await mountAppWithComments([]);
+
+    const card = app.querySelector<HTMLDetailsElement>("#question-phone");
+    if (!card) throw new Error("question card missing");
+    card.open = true;
+
+    expect(card.querySelector(".badge--comments")?.textContent).toBe("");
+    expect(card.querySelector(".comments h4")?.textContent).toBe("Comments");
+
+    const posted = {
+      kind: "question",
+      id: "phone",
+      timestamp: "2026-08-21T10:00:00.000Z",
+      author: "Reviewer",
+      body: "Posted just now.",
+      targetLabel: "Phone",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ comment: posted }), { status: 200 })),
+    );
+
+    const form = card.querySelector<HTMLFormElement>(".comment-form");
+    const author = card.querySelector<HTMLInputElement>('input[name="author"]');
+    const body = card.querySelector<HTMLTextAreaElement>('textarea[name="body"]');
+    const passphrase = card.querySelector<HTMLInputElement>('input[name="passphrase"]');
+    if (!form || !author || !body || !passphrase) throw new Error("comment form incomplete");
+
+    author.value = "Reviewer";
+    body.value = "Posted just now.";
+    passphrase.value = "secret";
+    form.dispatchEvent(new Event("submit", { cancelable: true }));
+
+    await vi.waitFor(() => {
+      if (card.querySelector(".badge--comments")?.textContent !== "1 comment") {
+        throw new Error("badge not updated yet");
+      }
+    });
+
+    expect(card.querySelector(".comments h4")?.textContent).toBe("Comments (1)");
+    expect(card.querySelector(".comment__body")?.textContent).toBe("Posted just now.");
+    // The card must still be open — the whole reason the post path avoids a re-render.
+    expect(card.open).toBe(true);
+  });
+
+  it("updates a capability row's count in place when a comment is posted there", async () => {
+    const app = await mountAppWithComments([]);
+    tab("Provider capabilities").click();
+
+    const row = app.querySelector<HTMLDetailsElement>(".cap-variance__comments");
+    if (!row) throw new Error("capability comment row missing");
+    row.open = true;
+
+    const summary = row.querySelector("summary");
+    expect(summary?.textContent).toBe("Comments");
+
+    const capabilityId = row
+      .querySelector(".comments")
+      ?.getAttribute("aria-labelledby")
+      ?.replace("comments-capability-", "")
+      .replace("-heading", "");
+    if (!capabilityId) throw new Error("could not determine capability id");
+
+    const posted = {
+      kind: "capability",
+      id: capabilityId,
+      timestamp: "2026-08-21T10:00:00.000Z",
+      author: "Reviewer",
+      body: "Two of our vans have lifts.",
+      targetLabel: "Lift",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ comment: posted }), { status: 200 })),
+    );
+
+    const form = row.querySelector<HTMLFormElement>(".comment-form");
+    const author = row.querySelector<HTMLInputElement>('input[name="author"]');
+    const body = row.querySelector<HTMLTextAreaElement>('textarea[name="body"]');
+    const passphrase = row.querySelector<HTMLInputElement>('input[name="passphrase"]');
+    if (!form || !author || !body || !passphrase) throw new Error("comment form incomplete");
+
+    author.value = "Reviewer";
+    body.value = "Two of our vans have lifts.";
+    passphrase.value = "secret";
+    form.dispatchEvent(new Event("submit", { cancelable: true }));
+
+    await vi.waitFor(() => {
+      if (row.querySelector("summary")?.textContent !== "Comments (1)") {
+        throw new Error("summary not updated yet");
+      }
+    });
+
+    expect(row.querySelector(".comments h4")?.textContent).toBe("Comments (1)");
+    expect(row.open).toBe(true);
   });
 });

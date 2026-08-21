@@ -32,6 +32,8 @@ export interface CommentThreadProps {
    * <details>, and re-rendering the page would collapse it out from under the reader.
    */
   onPosted: (comment: Comment) => void;
+  /** Called with the new total after a successful post, so a caller's own count stays current. */
+  onCountChange?: (count: number) => void;
 }
 
 /** localStorage throws in some privacy modes and in sandboxed frames; never let that break the page. */
@@ -57,6 +59,58 @@ function forgetPassphrase(): void {
   } catch {
     // As above.
   }
+}
+
+/** Label for a collapsed control that reveals a thread. */
+export function commentCountLabel(count: number): string {
+  return count === 0 ? "Comments" : `Comments (${String(count)})`;
+}
+
+/** Label for the badge on a collapsed card. Empty when there is no discussion to advertise. */
+export function commentCountBadgeLabel(count: number): string {
+  if (count === 0) return "";
+  return count === 1 ? "1 comment" : `${String(count)} comments`;
+}
+
+/**
+ * A count label a caller owns but the thread keeps current.
+ *
+ * Posting a comment updates the thread's DOM in place rather than re-rendering the page, because
+ * a re-render would collapse the <details> the reader is typing in. The consequence is that any
+ * count shown *outside* the thread — the badge on a question card, the summary on a capability
+ * row — would otherwise sit stale until the next unrelated render. Each caller therefore builds
+ * its label through one of these and hands `update` back as `onCountChange`.
+ */
+export interface CommentCountLabel {
+  element: HTMLElement;
+  update: (count: number) => void;
+}
+
+function liveLabel(
+  tag: "span" | "summary",
+  attrs: Record<string, string>,
+  format: (count: number) => string,
+  count: number,
+): CommentCountLabel {
+  const element = h(tag, attrs, format(count));
+  return {
+    element,
+    update: (next: number) => {
+      clear(element);
+      const text = format(next);
+      if (text) element.append(text);
+    },
+  };
+}
+
+/** Badge for a collapsed question card. Hidden by CSS while its text is empty. */
+export function commentCountBadge(count: number): CommentCountLabel {
+  return liveLabel("span", { className: "badge badge--comments" }, commentCountBadgeLabel, count);
+}
+
+/** <summary> for a capability row's collapsible thread. */
+export function commentCountSummary(count: number): CommentCountLabel {
+  return liveLabel("summary", {}, commentCountLabel, count);
 }
 
 function formatTimestamp(iso: string): string {
@@ -114,6 +168,7 @@ function renderForm(
   props: CommentThreadProps,
   client: CommentsClient,
   list: HTMLElement,
+  onAppended: () => void,
 ): HTMLElement {
   const key = domKey(props.target);
 
@@ -192,6 +247,7 @@ function renderForm(
       emptyNote?.remove();
       list.append(renderComment(posted));
       props.onPosted(posted);
+      onAppended();
 
       bodyInput.value = "";
       setStatus("Comment posted.", false);
@@ -247,17 +303,25 @@ function renderForm(
 export function renderCommentThread(props: CommentThreadProps): HTMLElement {
   const key = domKey(props.target);
   const headingId = `comments-${key}-heading`;
-  const count = props.comments.length;
+  let count = props.comments.length;
 
+  const heading = h("h4", { id: headingId }, commentCountLabel(count));
   const list = h("ul", { className: "comment-list" }, ...props.comments.map(renderComment));
+
+  const handleAppended = (): void => {
+    count += 1;
+    clear(heading);
+    heading.append(commentCountLabel(count));
+    props.onCountChange?.(count);
+  };
 
   return h(
     "section",
     { className: "comments", "aria-labelledby": headingId },
-    h("h4", { id: headingId }, count > 0 ? `Comments (${String(count)})` : "Comments"),
+    heading,
     renderStatusLine(props.state, count),
     list,
-    props.client ? renderForm(props, props.client, list) : undefined,
+    props.client ? renderForm(props, props.client, list, handleAppended) : undefined,
   );
 }
 
@@ -278,6 +342,7 @@ export function renderCommentThreadFor(
   context: CommentContext,
   target: CommentTarget,
   targetLabel: string,
+  onCountChange?: (count: number) => void,
 ): HTMLElement {
   return renderCommentThread({
     target,
@@ -286,6 +351,7 @@ export function renderCommentThreadFor(
     comments: commentsFor(context.resolved, target),
     client: context.client,
     onPosted: context.onPosted,
+    ...(onCountChange ? { onCountChange } : {}),
   });
 }
 
