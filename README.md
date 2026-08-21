@@ -144,6 +144,12 @@ ever need to become permanent annotations, the sheet exports to CSV and joins `/
 - **Every Apps Script response is HTTP 200.** `ContentService` cannot set a status code, so
   failure is signalled by an `error` key in the JSON body. The client checks for it _before_ it
   checks `response.ok`.
+- **The POST reply is not reliably readable, and a successful write can look like a failure.**
+  Apps Script 302s a cross-origin POST to a single-use `script.googleusercontent.com` URL, and
+  that follow-up request sometimes 404s after `doPost` has already appended the row. When the
+  reply cannot be parsed, `client.ts` re-reads the store (GET is reliable) and looks for the
+  comment it just sent — found means success, absent means genuine rejection. This is why posting
+  occasionally costs two round trips.
 - **The passphrase is never compiled into the bundle.** Anything in a `VITE_*` variable ships in
   plaintext, which would make the gate decorative. The reader types it; it is remembered in
   `localStorage` and cleared automatically when the server rejects it.

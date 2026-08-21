@@ -154,4 +154,69 @@ describe("post", () => {
       "Incorrect passphrase.",
     );
   });
+
+  it("confirms by re-reading when the POST reply is unreadable but the write landed", async () => {
+    // The real-world case: Apps Script 302s a cross-origin POST to a single-use
+    // script.googleusercontent.com URL that sometimes 404s, even though doPost already appended
+    // the row. Reporting a failure there would be wrong — the comment is saved.
+    const saved = { ...draft, timestamp: "2026-08-21T09:00:00.000Z" };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("<html>Not found</html>", { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ comments: [saved] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const posted = await client().post(draft, { passphrase: "secret", honeypot: "" });
+
+    expect(posted.body).toBe(draft.body);
+    expect(posted.timestamp).toBe("2026-08-21T09:00:00.000Z");
+    expect(fetchMock.mock.calls).toHaveLength(2);
+    expect((fetchMock.mock.calls[1] as [string, RequestInit])[1].method).toBe("GET");
+  });
+
+  it("returns the newest match when an earlier attempt already duplicated the comment", async () => {
+    const older = { ...draft, timestamp: "2026-08-21T08:00:00.000Z" };
+    const newer = { ...draft, timestamp: "2026-08-21T09:00:00.000Z" };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response("<html>Not found</html>", { status: 404 }))
+        .mockResolvedValueOnce(jsonResponse({ comments: [older, newer] })),
+    );
+
+    expect((await client().post(draft, { passphrase: "s", honeypot: "" })).timestamp).toBe(
+      "2026-08-21T09:00:00.000Z",
+    );
+  });
+
+  it("reports a real failure when the unreadable POST left nothing in the store", async () => {
+    // Same unreadable reply, opposite conclusion: nothing was written, so the passphrase is the
+    // likely culprit and the reader needs to be told so.
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response("<html>Not found</html>", { status: 404 }))
+        .mockResolvedValueOnce(jsonResponse({ comments: [] })),
+    );
+
+    await expect(client().post(draft, { passphrase: "wrong", honeypot: "" })).rejects.toThrow(
+      /was not saved.*passphrase/i,
+    );
+  });
+
+  it("says so plainly when neither the POST reply nor the re-read can be trusted", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response("<html>Not found</html>", { status: 404 }))
+        .mockRejectedValueOnce(new Error("Network down")),
+    );
+
+    await expect(client().post(draft, { passphrase: "s", honeypot: "" })).rejects.toThrow(
+      /unclear whether the comment was saved/,
+    );
+  });
 });

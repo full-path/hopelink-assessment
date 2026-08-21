@@ -96,14 +96,57 @@ export function createCommentsClient(endpoint: string | undefined): CommentsClie
   const url = endpoint?.trim();
   if (!url) return null;
 
-  return {
-    async list(): Promise<Comment[]> {
-      const response = await fetch(url, { method: "GET" });
-      if (!response.ok) {
-        throw new Error(`Could not load comments (HTTP ${String(response.status)}).`);
+  // Arrow consts rather than function declarations: TypeScript does not narrow `url` to a
+  // definite string inside a hoisted declaration, only inside a closure created after the guard.
+  const listComments = async (): Promise<Comment[]> => {
+    const response = await fetch(url, { method: "GET" });
+    if (!response.ok) {
+      throw new Error(`Could not load comments (HTTP ${String(response.status)}).`);
+    }
+    return parseCommentList(await readJson(response));
+  };
+
+  /**
+   * Did the post actually land? Asked only when the POST reply could not be read.
+   *
+   * Apps Script answers a cross-origin POST with a 302 to a single-use
+   * script.googleusercontent.com URL, and that follow-up request sometimes returns 404 even
+   * though `doPost` already ran and appended the row. The write is not in doubt in that case;
+   * only our ability to read the acknowledgement is. GET has no such problem — it is how the
+   * page loads comments in the first place — so re-reading answers the question directly rather
+   * than reporting a failure that did not happen.
+   */
+  const confirmPosted = async (draft: NewComment): Promise<Comment> => {
+    let comments: Comment[];
+    try {
+      comments = await listComments();
+    } catch {
+      throw new Error(
+        "The comment store did not acknowledge the post and could not be re-read, so it is " +
+          "unclear whether the comment was saved. Reload the page to check before re-posting.",
+      );
+    }
+
+    // Newest first: if an earlier attempt duplicated the comment, the last row is the one just
+    // written, and its server timestamp is the one to display.
+    for (const candidate of [...comments].reverse()) {
+      if (
+        candidate.kind === draft.kind &&
+        candidate.id === draft.id &&
+        candidate.author === draft.author &&
+        candidate.body === draft.body
+      ) {
+        return candidate;
       }
-      return parseCommentList(await readJson(response));
-    },
+    }
+
+    throw new Error(
+      "The comment was not saved. The passphrase may be incorrect — check it and try again.",
+    );
+  };
+
+  return {
+    list: listComments,
 
     async post(draft: NewComment, options: PostOptions): Promise<Comment> {
       if (draft.body.length > MAX_BODY_LENGTH) {
@@ -124,11 +167,20 @@ export function createCommentsClient(endpoint: string | undefined): CommentsClie
         }),
       });
 
-      const payload = await readJson(response);
+      let payload: unknown;
+      try {
+        payload = await readJson(response);
+      } catch {
+        // Unreadable reply — see confirmPosted. Ask the store what happened instead of guessing.
+        return await confirmPosted(draft);
+      }
+
       if (typeof payload !== "object" || payload === null) {
         throw new Error("Comment store returned an unexpected response.");
       }
       const { comment, error } = payload as { comment?: unknown; error?: unknown };
+      // Checked before `response.ok` because every Apps Script reply is HTTP 200: ContentService
+      // cannot set a status code, so the `error` key is the only failure signal there is.
       if (typeof error === "string") throw new Error(error);
       if (!response.ok) {
         throw new Error(`Could not post comment (HTTP ${String(response.status)}).`);
