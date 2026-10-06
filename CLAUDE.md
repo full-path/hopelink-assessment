@@ -222,11 +222,20 @@ question/capability links, and comments whose target is not in the displayed dat
      anything of variable width must come before it — a comment badge reading "1 comment" on one
      row and "3 comments" on the next would shift the strip sideways by a different amount each
      time. New badges go before it, never after.
-   - **Colour is a sequential ramp, not five hues.** The levels are ordered (proof required >
-     required > self-attestation > optional), so strictness maps to ink; "not asked" sits outside
-     the ramp as a faint neutral, and the ramp inverts in dark mode. A legend renders once above
-     the list — sixteen boxes in five colours are illegible without it, so it is part of the
-     feature, not a nicety.
+   - **Colour is an ordinal ramp, not five hues.** The levels are ordered (proof required >
+     required > self-attestation > optional), so strictness maps to ink. The ramp inverts in dark
+     mode, with its own validated steps rather than a flip of the light ones. A legend renders
+     once above the list — sixteen boxes in five states are illegible without it, so it is part
+     of the feature, not a nicety.
+   - **The ramp steps are measured, not chosen by eye.** They satisfy the ordinal checks:
+     monotone lightness, adjacent ΔL >= 0.06, a single hue, and the light end clearing 2:1
+     against the surface it sits on. The first version of this ramp ended at `#c7dbfd`, which
+     measures **1.37:1 on white** — effectively invisible, and the reason Optional and Not asked
+     could not be told apart. Re-validate before changing any step; do not substitute a
+     better-looking value.
+   - **"Not asked" is encoded by fill, not by hue.** It is an absence rather than a weaker level,
+     so it renders as an empty cell against four filled ones. That distinction survives any
+     colour vision and any monitor, which a fifth pale step would not.
 2. Per-question expandable detail showing, per agency: requirement level and proof detail where
    applicable.
 3. Filter/sort by: agency (a multi-select; empty means every agency, and selections are a union

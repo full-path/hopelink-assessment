@@ -19,14 +19,18 @@
   --color-candidate-text: #027a48;
   --color-candidate-border: #6cca9b;
   --color-surface: #f8fafc;
-  /* Requirement-strictness ramp for the per-agency strip. One hue, four steps, strictest
-     darkest — the levels are ordered, so a sequential scale reads as density where five
-     unrelated hues would just be a code to memorise. "Not asked" sits outside the ramp. */
-  --color-level-proof_required: #1e3a8a;
-  --color-level-required: #2563eb;
-  --color-level-self_attestation: #7aa9f7;
-  --color-level-optional: #c7dbfd;
-  --color-level-not-asked: #eceff3;
+  /* Requirement-strictness ramp for the per-agency strip. The levels are ordered, so this is an
+     ORDINAL scale: one hue, monotone lightness, strictest darkest. Five unrelated hues would
+     just be a code to memorise.
+
+     Steps are validated, not eyeballed — monotone lightness, adjacent ΔL >= 0.06, single hue,
+     and the light end clearing 2:1 against the surface it sits on. The earlier ramp ended at
+     #c7dbfd, which measured 1.37:1 on white: invisible, and the reason Optional and Not asked
+     were hard to tell apart. This ramp ends at 2.16:1. Re-validate before changing a step. */
+  --color-level-proof_required: #13275a;
+  --color-level-required: #1f4fb0;
+  --color-level-self_attestation: #3f7fdc;
+  --color-level-optional: #86b3ef;
   --color-level-edge: #c3cad4;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -52,12 +56,13 @@
     --color-candidate-text: #6ee7a8;
     --color-candidate-border: #2f6b4c;
     --color-surface: #171b21;
-    /* Inverted: on a dark ground the strictest level is the lightest, not the darkest. */
-    --color-level-proof_required: #cfe0fd;
-    --color-level-required: #6ea8fe;
-    --color-level-self_attestation: #3b6fc4;
-    --color-level-optional: #26416e;
-    --color-level-not-asked: #272c34;
+    /* Inverted: on a dark ground the strictest level is the lightest, not the darkest. Its own
+       validated steps rather than a flip of the light ramp — the previous dark Optional
+       (#26416e) measured 1.9:1 against this surface. These end at 2.94:1. */
+    --color-level-proof_required: #dbe8fe;
+    --color-level-required: #93bcf6;
+    --color-level-self_attestation: #4f86da;
+    --color-level-optional: #35609e;
     --color-level-edge: #3d4450;
   }
 }
@@ -862,8 +867,15 @@ summary:focus-visible,
 .agency-box--optional {
   background: var(--color-level-optional);
 }
+/*
+ * "Not asked" is an absence, not a weaker level, so it sits outside the ramp and is encoded by
+ * fill rather than by hue: an empty cell against four filled ones. That distinction survives any
+ * colour vision and any monitor, which a fifth pale step would not — and it was the pair readers
+ * actually struggled with.
+ */
 .agency-box--not-asked {
-  background: var(--color-level-not-asked);
+  background: var(--color-surface);
+  border-color: var(--color-border);
 }
 
 /*
