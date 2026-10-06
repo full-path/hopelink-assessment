@@ -832,6 +832,9 @@ summary:focus-visible,
      independent of the question text's length and of which badges happen to precede it, so the
      strips line up across every card and can actually be compared. */
   margin-left: auto;
+  /* Containing block for the hover tooltip below, so every box's tooltip lands in the same
+     place — just above the strip, right-aligned to it — instead of drifting with the box. */
+  position: relative;
   /* Never let the strip stretch or compress: box position means "this agency", and it only
      means that if it is identical on every card. */
   flex: 0 0 auto;
@@ -861,6 +864,43 @@ summary:focus-visible,
 }
 .agency-box--not-asked {
   background: var(--color-level-not-asked);
+}
+
+/*
+ * Immediate tooltip. The native `title` attribute is delayed by roughly half a second and that
+ * delay cannot be configured, which is too slow for sweeping a row of sixteen boxes — so the
+ * text lives in `data-tip` and is drawn here, appearing on the first hover frame.
+ *
+ * Anchored to the strip rather than to the box: right-aligned above it, so it opens leftward
+ * away from the window edge the strip is pinned to, and never lands half off-screen.
+ *
+ * Scoped to boxes inside a strip. The legend reuses `.agency-box` for its swatches so they look
+ * identical, but those carry no `data-tip` and would otherwise pop an empty tooltip.
+ */
+.agency-strip .agency-box:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  width: max-content;
+  max-width: min(30rem, 80vw);
+  /* Preserves the line breaks between agency, level and proof detail, and wraps the long
+     proof strings (ORCA's runs to several lines). */
+  white-space: pre-wrap;
+  text-align: left;
+  font-weight: 400;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 22%);
+  /* Never let the tooltip take the pointer: it sits where the cursor is heading, and catching
+     a hover would make it flicker. */
+  pointer-events: none;
 }
 
 .agency-legend {

@@ -212,6 +212,11 @@ question/capability links, and comments whose target is not in the displayed dat
    - **An agency gets one box, at its strictest level.** Agencies appear in several requirement
      columns for the same question; `effectiveLevelByAgency` in `summary.ts` resolves that and is
      shared with the standardization summary so the two cannot disagree.
+   - **Tooltips are CSS, not the `title` attribute.** Browsers delay native tooltips by around
+     half a second and the delay cannot be configured, which is too slow for sweeping a row of
+     sixteen boxes, so the text lives in `data-tip` and is drawn by a `:hover::after` rule. The
+     rule is scoped to `.agency-strip .agency-box` because the legend reuses the same class for
+     its swatches and those carry no tooltip text.
    - **The strip is always the last element in the header, and is pinned right.** Its boxes only
      invite comparison between questions if they land at the same x position on every card, so
      anything of variable width must come before it — a comment badge reading "1 comment" on one

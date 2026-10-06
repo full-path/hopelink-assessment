@@ -49,12 +49,18 @@ function proofDetailsFor(question: IntakeQuestion, agencyId: string): string[] {
 }
 
 /**
- * Mouse-over text for one box. A `title` is used rather than a custom tooltip because the strip
- * lives inside a <summary>: anything focusable here would add 16 tab stops per card, and there
- * are dozens of cards. The authoritative per-agency breakdown is the requirements table in the
- * card body, which is what assistive technology and keyboard users get.
+ * Mouse-over text for one box, carried in `data-tip` and drawn by CSS on hover.
+ *
+ * Not the `title` attribute: browsers delay native tooltips by around half a second and that
+ * delay is not configurable, which is far too slow for sweeping across sixteen boxes. The CSS
+ * tooltip appears on the first hover frame.
+ *
+ * The boxes stay non-focusable either way — the strip lives inside a <summary>, so making them
+ * focusable would add sixteen tab stops per card across dozens of cards. The authoritative
+ * per-agency breakdown is the requirements table in the card body, which is what assistive
+ * technology and keyboard users get.
  */
-function boxTitle(
+function boxTooltip(
   question: IntakeQuestion,
   agencyById: Map<string, Agency>,
   agencyId: string,
@@ -111,7 +117,7 @@ export function renderAgencyStrip(props: AgencyStripProps): HTMLElement {
       const level = levelByAgency.get(agencyId);
       return h("span", {
         className: `agency-box agency-box--${level ?? NOT_ASKED}`,
-        title: boxTitle(question, agencyById, agencyId, level),
+        "data-tip": boxTooltip(question, agencyById, agencyId, level),
       });
     }),
   );

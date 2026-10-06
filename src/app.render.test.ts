@@ -499,7 +499,7 @@ describe("app render", () => {
     const app = await mountApp();
 
     const names = (id: string) =>
-      boxes(app, id).map((b) => (b.getAttribute("title") ?? "").split(" — ")[0]);
+      boxes(app, id).map((b) => (b.getAttribute("data-tip") ?? "").split(" — ")[0]);
 
     const reference = names("income");
     expect(reference[0]).toBe("Hyde Shuttle");
@@ -531,20 +531,20 @@ describe("app render", () => {
     expect(orca?.getAttribute("class")).not.toContain("self_attestation");
   });
 
-  it("puts agency, level, and proof detail in each box's mouse-over text", async () => {
+  it("puts agency, level, and proof detail in each box's tooltip", async () => {
     const app = await mountApp();
-    const title = (i: number) => boxes(app, "income")[i]?.getAttribute("title") ?? "";
+    const tip = (i: number) => boxes(app, "income")[i]?.getAttribute("data-tip") ?? "";
 
-    expect(title(0)).toBe("Hyde Shuttle — Self-Attestation");
-    expect(title(1)).toBe("Northshore Senior Center — Not asked");
+    expect(tip(0)).toBe("Hyde Shuttle — Self-Attestation");
+    expect(tip(1)).toBe("Northshore Senior Center — Not asked");
 
-    const orca = title(5);
+    const orca = tip(5);
     expect(orca.startsWith("ORCA — Proof Required")).toBe(true);
     expect(orca).toContain("Proof: ProviderOne number OR EBT number");
 
     // A question nobody asks: every box says so rather than being blank.
     for (const box of boxes(app, "mailing-address-same-as-home-address")) {
-      expect(box.getAttribute("title")).toContain("Not asked");
+      expect(box.getAttribute("data-tip")).toContain("Not asked");
     }
   });
 
@@ -612,14 +612,14 @@ describe("app render", () => {
 
     const strip = app.querySelectorAll(".question-card")[0]?.querySelectorAll(".agency-box");
     expect(strip?.length).toBe(2);
-    expect(strip?.[0]?.getAttribute("title")).toContain("Hyde Shuttle");
-    expect(strip?.[1]?.getAttribute("title")).toContain("Zip Shuttle");
+    expect(strip?.[0]?.getAttribute("data-tip")).toContain("Hyde Shuttle");
+    expect(strip?.[1]?.getAttribute("data-tip")).toContain("Zip Shuttle");
 
     // Every card agrees, which is what makes a column scannable.
     for (const card of app.querySelectorAll(".question-card")) {
       const boxes = card.querySelectorAll(".agency-box");
       expect(boxes.length).toBe(2);
-      expect(boxes[0]?.getAttribute("title")).toContain("Hyde Shuttle");
+      expect(boxes[0]?.getAttribute("data-tip")).toContain("Hyde Shuttle");
     }
   });
 
@@ -714,5 +714,24 @@ describe("app render", () => {
     );
     expect(phone[phone.length - 1]).toContain("agency-strip");
     expect(phone[0]).toContain("question-card__text");
+  });
+
+  it("uses data-tip rather than title so the tooltip is not delayed", async () => {
+    // `title` is drawn by the browser after roughly half a second and the delay cannot be
+    // configured. Reintroducing it would also double the tooltip, since the CSS one stays.
+    const app = await mountApp();
+
+    const stripBoxes = app.querySelectorAll(".agency-strip .agency-box");
+    expect(stripBoxes.length).toBeGreaterThan(100);
+    for (const box of stripBoxes) {
+      expect(box.hasAttribute("title")).toBe(false);
+      expect((box.getAttribute("data-tip") ?? "").length).toBeGreaterThan(0);
+    }
+
+    // The legend reuses the same class for its swatches; those carry no tooltip, and the CSS
+    // rule is scoped to strips so they do not show an empty one.
+    for (const swatch of app.querySelectorAll(".agency-legend .agency-box")) {
+      expect(swatch.hasAttribute("data-tip")).toBe(false);
+    }
   });
 });
