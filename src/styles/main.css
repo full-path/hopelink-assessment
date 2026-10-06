@@ -828,6 +828,10 @@ summary:focus-visible,
 .agency-strip {
   display: inline-flex;
   gap: 2px;
+  /* Pinned to the right edge of the header, making it a true column: box position is then
+     independent of the question text's length and of which badges happen to precede it, so the
+     strips line up across every card and can actually be compared. */
+  margin-left: auto;
   /* Never let the strip stretch or compress: box position means "this agency", and it only
      means that if it is identical on every card. */
   flex: 0 0 auto;

@@ -212,6 +212,11 @@ question/capability links, and comments whose target is not in the displayed dat
    - **An agency gets one box, at its strictest level.** Agencies appear in several requirement
      columns for the same question; `effectiveLevelByAgency` in `summary.ts` resolves that and is
      shared with the standardization summary so the two cannot disagree.
+   - **The strip is always the last element in the header, and is pinned right.** Its boxes only
+     invite comparison between questions if they land at the same x position on every card, so
+     anything of variable width must come before it — a comment badge reading "1 comment" on one
+     row and "3 comments" on the next would shift the strip sideways by a different amount each
+     time. New badges go before it, never after.
    - **Colour is a sequential ramp, not five hues.** The levels are ordered (proof required >
      required > self-attestation > optional), so strictness maps to ink; "not asked" sits outside
      the ramp as a faint neutral, and the ramp inverts in dark mode. A legend renders once above

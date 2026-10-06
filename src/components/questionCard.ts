@@ -238,6 +238,19 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
       "summary",
       { className: "question-card__summary" },
       h("span", { className: "question-card__text" }, question.text),
+      // Everything of variable width goes before the strip, which is always last.
+      //
+      // The strip is a column: its boxes only invite comparison if they land at the same x on
+      // every card. Anything after it with a width that differs per card — "1 comment" vs
+      // "3 comments", a badge that appears on some rows only — shifts it sideways by a
+      // different amount each time and destroys that. Keep new badges above this line.
+      //
+      // Surfaced on the collapsed line so a reader can see there is discussion without opening
+      // every card to go looking for it.
+      commentBadge.element,
+      hasUnresolved
+        ? h("span", { className: "badge badge--warning" }, "Unresolved link")
+        : undefined,
       // Self-describing rather than a bare "7 of 16": the badge is read out of context both by
       // a screen reader and by someone scanning 43 collapsed rows.
       h(
@@ -247,12 +260,6 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
           (agencyFilterActive ? "selected agencies" : "agencies"),
       ),
       renderAgencyStrip({ question, agencyById, agencyIds: stripAgencyIds }),
-      hasUnresolved
-        ? h("span", { className: "badge badge--warning" }, "Unresolved link")
-        : undefined,
-      // Surfaced on the collapsed line so a reader can see there is discussion without opening
-      // every card to go looking for it.
-      commentBadge.element,
     ),
     h(
       "div",

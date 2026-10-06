@@ -689,4 +689,30 @@ describe("app render", () => {
     expect(app.querySelector<HTMLInputElement>("#data-source-file")?.type).toBe("file");
     expect(app.textContent).toContain("Preview a replacement CSV");
   });
+
+  it("puts the agency strip last in every header so the boxes form a column", async () => {
+    // This is what makes the strips comparable between questions: anything of variable width
+    // after the strip shifts it sideways by a different amount on each card.
+    const app = await mountAppWithComments([stubComment({ id: "phone" })]);
+
+    const summaries = app.querySelectorAll(".question-card__summary");
+    expect(summaries.length).toBeGreaterThan(20);
+    for (const summary of summaries) {
+      expect(summary.lastElementChild?.classList.contains("agency-strip")).toBe(true);
+    }
+
+    // On a card that has a comment badge, it comes before the count, not after the strip.
+    const classesOf = (id: string) =>
+      [...(app.querySelector(`#question-${id} .question-card__summary`)?.children ?? [])].map(
+        (el) => el.className,
+      );
+
+    const phone = classesOf("phone");
+    expect(phone.some((c) => c.includes("badge--comments"))).toBe(true);
+    expect(phone.findIndex((c) => c.includes("badge--comments"))).toBeLessThan(
+      phone.findIndex((c) => c.includes("badge--agency-count")),
+    );
+    expect(phone[phone.length - 1]).toContain("agency-strip");
+    expect(phone[0]).toContain("question-card__text");
+  });
 });
