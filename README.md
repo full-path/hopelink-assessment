@@ -13,7 +13,8 @@ of them, is the strongest candidate for a shared intake question.
 
 The CSVs in `/data` are normalized at build time into typed JSON files that the static frontend
 loads as its default dataset. The same normalization logic also runs in the browser, so a viewer
-can upload a replacement CSV and preview it in place — see "Previewing a replacement CSV" below.
+can upload a replacement CSV and preview it in place. That control is currently hidden — see
+"Previewing a replacement CSV" below for how to turn it back on.
 
 Readers can also leave comments on an individual question or capability. That is the one part of
 the system that persists anything, and it is optional: with no comment endpoint configured the
@@ -22,10 +23,10 @@ site builds, deploys, and works exactly as it did before, minus the comment boxe
 
 ## The two views
 
-| View                      | What it answers                                                                                                                                                                                                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Intake questions**      | Every unique question, who asks it and how strictly, its upstream/downstream chain, what it determines about a provider, and which agencies would have to change practice to standardize on it.                                                                 |
-| **Provider capabilities** | Which capabilities actually differ between providers, the full provider × capability matrix, and who has and hasn't reported — distinguishing "surveyed and answered nothing" from "never surveyed" from "operates no vehicles, so the question doesn't apply". |
+| View                      | What it answers                                                                                                                                                                                                                                                                                |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Intake questions**      | Every unique question, how many agencies ask it, a per-agency strip showing each one's requirement level at a glance, who asks it and how strictly, its upstream/downstream chain, what it determines about a provider, and which agencies would have to change practice to standardize on it. |
+| **Provider capabilities** | Which capabilities actually differ between providers, the full provider × capability matrix, and who has and hasn't reported — distinguishing "surveyed and answered nothing" from "never surveyed" from "operates no vehicles, so the question doesn't apply".                                |
 
 ## Requirements
 
@@ -66,13 +67,23 @@ change in agency intake practice:
 
 | File                               | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data/eligibility-questions.csv`   | The intake questions — source of record. Cleaned from `data/by-question.csv`, the raw agency-survey export, which is kept unmodified so the cleanup is auditable.                                                                                                                                                                                                                                                                                                         |
+| `data/eligibility-questions.csv`   | The intake questions — source of record. Cleaned from `data/by-question.csv`, the agency-survey export, kept alongside it so the cleanup is auditable. That file is a maintained question bank, not a frozen receipt — a question may be added to it deliberately (CLAUDE.md §11 item 13) — but it is never edited to restate what an agency answered.                                                                                                                    |
 | `data/capabilities.csv`            | One row per ride provider, one column per capability. Answers are free text; the normalizer maps them to `yes` / `no` / `conditional` / `unknown` and keeps the agency's own wording as a qualifier. **A blank cell means `unknown`, never `no`** — three agencies returned an entirely blank row.                                                                                                                                                                        |
 | `data/question-capability-map.csv` | Which question exists to determine which capability. This is an _editorial_ claim — nothing in the other two files asserts it — so each row carries a `Note` explaining the reasoning, and the file lives in `/data` rather than in code so a non-developer can review it. Capability names must match a column header of `capabilities.csv` exactly, or the build fails. Question text must match a `Question` cell exactly, or the build warns and the link is dropped. |
 
 ### Previewing a replacement CSV in the app
 
-The running app has a "Preview a replacement CSV" control at the top of the page. Choosing a CSV
+**This control is hidden by default.** Build or run with `VITE_SHOW_CSV_UPLOAD=true` to show it:
+
+```bash
+echo 'VITE_SHOW_CSV_UPLOAD=true' >> .env.local   # already gitignored
+npm run dev
+```
+
+Only the affordance is hidden — the upload path itself is intact, wired up, and covered by
+tests, so turning it on needs no code change.
+
+With it enabled, the app has a "Preview a replacement CSV" control at the top of the page. Choosing a CSV
 file (same columns as described below) re-renders the whole UI — list, filters, link resolution,
 standardization summaries — from that file instead of the bundled data.
 
@@ -232,7 +243,8 @@ Covers the part of the system most likely to silently produce wrong output:
     at all. A question is flagged as a _unified intake candidate_ when its capability varies **and**
     fewer than half of ride providers currently ask about it — the agencies not asking still need
     that answer to route a rider. Verdicts require at least two responses, and never treat a blank
-    answer as a "no".
+    answer as a "no". The flag appears in the question's capability panel and as a list filter,
+    not as a header badge — it is a claim that needs its one-sentence justification beside it.
 - **Committed JSON.** `src/data/questions.json` and `src/data/capabilities.json` are committed, not
   generated fresh in CI from a build secret, since the CSVs are plaintext committed sources of
   record — aggregate policy metadata, not rider PII.

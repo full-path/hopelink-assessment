@@ -1,8 +1,8 @@
 import { h } from "../dom";
 import type { Agency, IntakeQuestion } from "../data/types";
 import { LEVEL_LABELS } from "./filters";
+import { renderAgencyStrip } from "./agencyStrip";
 import { computeSummary } from "../summary";
-import { computeQuestionCapabilityInsight } from "../capabilities";
 import { renderCapabilityPanel, type CapabilityContext } from "./capabilityPanel";
 import {
   commentCountBadge,
@@ -22,6 +22,19 @@ export interface QuestionCardProps {
    * it is really an absence of data. The capabilities view reports that absence explicitly.
    */
   summaryAgencyIds: string[];
+  /**
+   * The agencies the header strip and the count badge cover — the agency filter's selection, or
+   * the whole population when nothing is selected.
+   *
+   * Deliberately separate from `summaryAgencyIds`, which stays the full population even while a
+   * filter is active. The strip is a display: narrowing it answers "how do *these* agencies
+   * handle this question?". The standardization summary is an analysis: its proposed level is
+   * the mode across agencies, so computing it over a hand-picked subset would produce a
+   * region-wide recommendation derived from two agencies. The filter must not reach it.
+   */
+  stripAgencyIds: string[];
+  /** Whether a selection is in force, so the count badge can say "selected" and mean it. */
+  agencyFilterActive: boolean;
   capabilityContext: CapabilityContext;
   commentContext: CommentContext;
 }
@@ -69,11 +82,7 @@ function renderRequirementsTable(question: IntakeQuestion, agencyById: Map<strin
   );
 }
 
-function renderLinks(
-  question: IntakeQuestion,
-  questionById: Map<string, IntakeQuestion>,
-  hasCapabilityLinks: boolean,
-) {
+function renderLinks(question: IntakeQuestion, questionById: Map<string, IntakeQuestion>) {
   const items: HTMLElement[] = [];
 
   for (const id of question.upstreamRefs) {
@@ -111,23 +120,11 @@ function renderLinks(
     return null;
   }
 
-  const hasUnresolved = (question.unresolvedLinks?.length ?? 0) > 0;
-
   return h(
     "div",
     { className: "links" },
     h("h4", {}, "Upstream / downstream"),
     h("ul", {}, ...items),
-    // The intake sheet's dangling references to provider capabilities have no question to point
-    // at, but they do have an answer — it just lives in a different dataset.
-    hasUnresolved && hasCapabilityLinks
-      ? h(
-          "p",
-          { className: "links__capability-hint" },
-          "An unresolved reference here points at provider capability data rather than another " +
-            "intake question. What this question determines about a provider is shown below.",
-        )
-      : undefined,
   );
 }
 
@@ -137,6 +134,22 @@ function renderSummary(
   summaryAgencyIds: string[],
 ) {
   const summary = computeSummary(question, summaryAgencyIds);
+
+  // No agency reported a practice for this question, so there is no mode to propose. Saying so
+  // is the point: inventing a level from an empty set would read as a finding.
+  if (summary.proposedLevel === null) {
+    return h(
+      "div",
+      { className: "summary" },
+      h("h4", {}, "Standardization summary"),
+      h(
+        "p",
+        { className: "empty-note" },
+        "No agency has a recorded practice for this question, so there is no basis for " +
+          "proposing a unified requirement level.",
+      ),
+    );
+  }
 
   const groups: { label: string; className: string }[] = [
     { label: "Already compatible", className: "posture--compatible" },
@@ -191,6 +204,8 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
     agencyById,
     questionById,
     summaryAgencyIds,
+    stripAgencyIds,
+    agencyFilterActive,
     capabilityContext,
     commentContext,
   } = props;
@@ -199,18 +214,22 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
   // re-rendering, so this badge would otherwise sit stale. Empty text hides it (see main.css).
   const commentBadge = commentCountBadge(commentCountFor(commentContext, commentTarget));
   const hasUnresolved = (question.unresolvedLinks?.length ?? 0) > 0;
-  const capabilityLinks = capabilityContext.linksByQuestionId.get(question.id) ?? [];
 
-  // Computed here as well as inside the panel so the collapsed card can advertise the finding
-  // without the reader having to open every question to go looking for it.
-  const isCandidate =
-    capabilityLinks.length > 0 &&
-    computeQuestionCapabilityInsight(
-      question,
-      capabilityLinks,
-      capabilityContext.profiles,
-      capabilityContext.rideProviderIds,
-    ).unifiedIntakeCandidate;
+  /**
+   * How many agencies ask this question in any form.
+   *
+   * Distinct agencies, not requirement entries: an agency can appear in several of the source
+   * CSV's columns for the same question (required *and* self-attestation, say), and that is one
+   * agency asking, not two.
+   *
+   * Counted over `stripAgencyIds` so the number and the boxes beside it always describe the same
+   * population — a badge reading "7 of 16" next to three boxes would be two answers to one
+   * question.
+   */
+  const stripAgencies = new Set(stripAgencyIds);
+  const askingAgencyCount = new Set(
+    question.requirements.map((r) => r.agencyId).filter((id) => stripAgencies.has(id)),
+  ).size;
 
   return h(
     "details",
@@ -219,17 +238,20 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
       "summary",
       { className: "question-card__summary" },
       h("span", { className: "question-card__text" }, question.text),
-      isCandidate
-        ? h("span", { className: "badge badge--candidate" }, "Unified intake candidate")
-        : undefined,
+      // Self-describing rather than a bare "7 of 16": the badge is read out of context both by
+      // a screen reader and by someone scanning 43 collapsed rows.
+      h(
+        "span",
+        { className: "badge badge--agency-count" },
+        `Asked by ${String(askingAgencyCount)} of ${String(stripAgencyIds.length)} ` +
+          (agencyFilterActive ? "selected agencies" : "agencies"),
+      ),
+      renderAgencyStrip({ question, agencyById, agencyIds: stripAgencyIds }),
       hasUnresolved
         ? h("span", { className: "badge badge--warning" }, "Unresolved link")
         : undefined,
-      question.dataQualityNote
-        ? h("span", { className: "badge badge--note" }, "Data quality note")
-        : undefined,
       // Surfaced on the collapsed line so a reader can see there is discussion without opening
-      // all 42 cards to go looking for it.
+      // every card to go looking for it.
       commentBadge.element,
     ),
     h(
@@ -244,7 +266,7 @@ export function renderQuestionCard(props: QuestionCardProps): HTMLElement {
           )
         : undefined,
       renderRequirementsTable(question, agencyById),
-      renderLinks(question, questionById, capabilityLinks.length > 0),
+      renderLinks(question, questionById),
       renderCapabilityPanel(question, capabilityContext),
       renderSummary(question, agencyById, summaryAgencyIds),
       renderCommentThreadFor(commentContext, commentTarget, question.text, commentBadge.update),

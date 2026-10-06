@@ -444,11 +444,18 @@
         }
       ],
       "upstreamRefs": [],
-      "downstreamRefs": [],
-      "unresolvedLinks": [
-        "Mailing address same as home address?"
+      "downstreamRefs": [
+        "mailing-address-same-as-home-address"
       ],
-      "dataQualityNote": "Bare 'ORCA' appears in Self-Attestation but not in Required or Optional for this question — same completeness gap as the Email row, not resolved here. Downstream reference does not match any Question row in this sheet and is left unresolved."
+      "dataQualityNote": "Bare 'ORCA' appears in Self-Attestation but not in Required or Optional for this question — same completeness gap as the Email row, not resolved here. Downstream reference now resolves: the 'Mailing address same as home address?' row was added to this sheet."
+    },
+    {
+      "id": "mailing-address-same-as-home-address",
+      "text": "Mailing address same as home address?",
+      "requirements": [],
+      "upstreamRefs": [],
+      "downstreamRefs": [],
+      "dataQualityNote": "Added deliberately, to by-question.csv and to this sheet, as a question in its own right. The agency survey never asked it — it appeared only as a reference from the Home address and Mailing address rows — so the agency columns are blank rather than inferred: no agency reported a requirement level or proof burden for it. Upstream/Downstream are blank because both neighbours already declare these edges, and this sheet declares each edge from one side only."
     },
     {
       "id": "mailing-address",
@@ -499,12 +506,11 @@
           "level": "self_attestation"
         }
       ],
-      "upstreamRefs": [],
-      "downstreamRefs": [],
-      "unresolvedLinks": [
-        "Mailing address same as home address?"
+      "upstreamRefs": [
+        "mailing-address-same-as-home-address"
       ],
-      "dataQualityNote": "Bare 'ORCA' in Self-Attestation not present in Required or Optional for this question — completeness gap, not resolved here. Upstream reference does not match any Question row and is left unresolved."
+      "downstreamRefs": [],
+      "dataQualityNote": "Bare 'ORCA' in Self-Attestation not present in Required or Optional for this question — completeness gap, not resolved here. Upstream reference now resolves: the 'Mailing address same as home address?' row was added to this sheet."
     },
     {
       "id": "accessibility-needs",
@@ -537,10 +543,7 @@
       ],
       "upstreamRefs": [],
       "downstreamRefs": [],
-      "unresolvedLinks": [
-        "Which provider capabilities are needed"
-      ],
-      "dataQualityNote": "Typo 'providercapabilities' corrected to 'provider capabilities'. The reference still matches no Question row and stays unresolved — it points at provider capability data (see data/capabilities.csv), which is a separate dataset this sheet does not model."
+      "dataQualityNote": "Typo 'providercapabilities' corrected to 'provider capabilities'. The original cell carried a Downstream reference to 'Which provider capabilities are needed', which is not an intake question but a pointer to provider capability data. It is removed here because that relationship is modelled properly in question-capability-map.csv, which links this question to the six capability columns it is understood to ask about — so the reference was redundant as well as unresolvable."
     },
     {
       "id": "gender",

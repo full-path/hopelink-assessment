@@ -39,7 +39,12 @@ export type AgencyPosture =
   | { status: "not_asked"; agencyId: string };
 
 export interface QuestionSummary {
-  proposedLevel: RequirementLevel;
+  /**
+   * The requirement level most agencies already use, or null when no agency reported a practice
+   * for this question at all — there is then no mode to take, and picking one anyway would
+   * present a fabricated verdict as a finding.
+   */
+  proposedLevel: RequirementLevel | null;
   postures: AgencyPosture[];
 }
 
@@ -49,7 +54,15 @@ export interface QuestionSummary {
  * agency as already compatible, needing a practice change, or not currently asking it —
  * directly answering CLAUDE.md Section 5, requirement 5.
  */
-export function computeSummary(question: IntakeQuestion, allAgencyIds: string[]): QuestionSummary {
+/**
+ * Each agency's single effective requirement level for one question.
+ *
+ * Agencies absent from the question are absent from the map — a caller that needs the full
+ * roster supplies it and treats a miss as "not asked". Shared by the standardization summary
+ * and by the per-agency strip in the question header, so the two can never disagree about what
+ * an agency's posture is.
+ */
+export function effectiveLevelByAgency(question: IntakeQuestion): Map<string, RequirementLevel> {
   const requirementsByAgency = new Map<string, AgencyRequirement[]>();
   for (const req of question.requirements) {
     const existing = requirementsByAgency.get(req.agencyId);
@@ -60,14 +73,21 @@ export function computeSummary(question: IntakeQuestion, allAgencyIds: string[])
     }
   }
 
+  return new Map(
+    [...requirementsByAgency].map(([agencyId, reqs]) => [agencyId, effectiveLevel(reqs)]),
+  );
+}
+
+export function computeSummary(question: IntakeQuestion, allAgencyIds: string[]): QuestionSummary {
+  const levelByAgency = effectiveLevelByAgency(question);
+
   const levelCounts = new Map<RequirementLevel, number>();
-  for (const reqs of requirementsByAgency.values()) {
-    const level = effectiveLevel(reqs);
+  for (const level of levelByAgency.values()) {
     levelCounts.set(level, (levelCounts.get(level) ?? 0) + 1);
   }
 
-  let proposedLevel: RequirementLevel = "required";
-  let bestCount = -1;
+  let proposedLevel: RequirementLevel | null = null;
+  let bestCount = 0;
   for (const level of STRICTNESS_ORDER) {
     const count = levelCounts.get(level) ?? 0;
     if (count > bestCount) {
@@ -76,12 +96,20 @@ export function computeSummary(question: IntakeQuestion, allAgencyIds: string[])
     }
   }
 
+  if (proposedLevel === null) {
+    // No agency reported a practice, so by construction none of them asks this question and
+    // there is nothing any of them could be incompatible with.
+    return {
+      proposedLevel: null,
+      postures: allAgencyIds.map((agencyId) => ({ status: "not_asked", agencyId })),
+    };
+  }
+
   const postures: AgencyPosture[] = allAgencyIds.map((agencyId) => {
-    const reqs = requirementsByAgency.get(agencyId);
-    if (!reqs || reqs.length === 0) {
+    const currentLevel = levelByAgency.get(agencyId);
+    if (currentLevel === undefined) {
       return { status: "not_asked", agencyId };
     }
-    const currentLevel = effectiveLevel(reqs);
     if (currentLevel === proposedLevel) {
       return { status: "compatible", agencyId, level: currentLevel };
     }

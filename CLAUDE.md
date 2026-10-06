@@ -29,7 +29,7 @@ Three CSVs in `/data`, all hand-editable sources of record:
 
 | File | Contents |
 |---|---|
-| `eligibility-questions.csv` | The intake questions. Cleaned from the raw agency-survey export (`by-question.csv`), which is kept alongside it unmodified so the cleanup is auditable. |
+| `eligibility-questions.csv` | The intake questions. Cleaned from the agency-survey export (`by-question.csv`), which is kept alongside it so the cleanup is auditable. That export is near-verbatim rather than frozen: a question may be added to it deliberately (see Section 11, item 13), so it is a maintained question bank, not an immutable receipt. Edit it only to add a question, never to restate what an agency answered. |
 | `capabilities.csv` | One row per ride provider, one column per capability (wheelchair, lift, service animals, …), free-text answers. |
 | `question-capability-map.csv` | An editorial claim that a given question exists in order to determine a given capability. Not derivable from either sheet above — a human asserts it, and the `Note` column records why. Kept as a CSV rather than in code so a program person can review and edit it. |
 
@@ -72,6 +72,21 @@ application parses the raw cells directly at runtime:
   text contains commas of its own (`Special directions (gate code, etc)`), so the cleaned CSV
   re-delimits these with `;` — the same convention the proof column uses — and `normalize.ts`
   splits on `;`.
+- **A referenced question with no row of its own.** `Home address` and `Mailing address` both
+  named `Mailing address same as home address?` in their link columns, but the survey had no row
+  for it, so both references dangled. It was added deliberately — to `by-question.csv` and to the
+  cleaned sheet — with blank agency columns, because no agency answered for it. See Section 11,
+  item 13.
+- **A link cell pointing outside this sheet.** `Accessibility needs` named
+  `Which provider capabilities are needed` as a downstream question. That is not an intake
+  question but a pointer at `capabilities.csv`, and the relationship is modelled properly in
+  `question-capability-map.csv` (six capability columns, with the editorial reasoning per row).
+  The cell is therefore cleared rather than reconciled — it was redundant as well as
+  unresolvable.
+- **The cleaned sheet now has zero unresolved links.** The *rendering* for them is still live and
+  still required: an uploaded CSV (Section 5, requirement 6) can reintroduce one at any time, and
+  Section 11 item 2 holds. There is simply nothing in the committed data that triggers it. The
+  filter that narrowed the list to them has been removed — see Section 11, item 2.
 - **Structural noise.** A blank row follows the header row. Some agency names carry trailing
   whitespace (e.g. `"ORCA "`), some cells end in a trailing comma that yields an empty agency
   token, the `Downstream Q's ` header itself carries a trailing space, and one proof cell
@@ -180,17 +195,57 @@ question/capability links, and comments whose target is not in the displayed dat
 
 ## 5. Functional Requirements
 
-1. Single-page list of all unique questions.
+1. Single-page list of all unique questions. Each collapsed row carries how many agencies ask
+   that question in any form, counted as distinct agencies rather than requirement entries (an
+   agency can appear in several of the source CSV's columns for one question, which is one agency
+   asking). This is the list's primary signal: most questions turn out to be asked by exactly one
+   agency, which is the overlap argument in a single number.
+
+   Alongside it, one small box per agency showing that agency's effective requirement level, or
+   that it does not ask. Three constraints make this work and are easy to break:
+
+   - **Box position must mean the same agency on every card.** All cards receive one shared,
+     stably ordered id list, so the strips align into columns and a reader can scan down the list
+     for a single agency's pattern. Sorting or filtering the ids *per card* destroys the only
+     thing the strip is for. `main.ts` derives that list from the roster — including when the
+     agency filter narrows it — which is where the ordering guarantee actually lives.
+   - **An agency gets one box, at its strictest level.** Agencies appear in several requirement
+     columns for the same question; `effectiveLevelByAgency` in `summary.ts` resolves that and is
+     shared with the standardization summary so the two cannot disagree.
+   - **Colour is a sequential ramp, not five hues.** The levels are ordered (proof required >
+     required > self-attestation > optional), so strictness maps to ink; "not asked" sits outside
+     the ramp as a faint neutral, and the ramp inverts in dark mode. A legend renders once above
+     the list — sixteen boxes in five colours are illegible without it, so it is part of the
+     feature, not a nicety.
 2. Per-question expandable detail showing, per agency: requirement level and proof detail where
    applicable.
-3. Filter/sort by: agency, requirement level, presence of unresolved links, and relationship to
-   provider capabilities (linked to one at all; or a "unified intake candidate" — see item 7).
+3. Filter/sort by: agency (a multi-select; empty means every agency, and selections are a union
+   — "asked by any of these"), requirement level, and relationship
+   to provider capabilities (linked to one at all; or a "unified intake candidate" — see item 7).
+
+   An agency selection also narrows the header strip and its count badge, so the number and the
+   boxes beside it always describe the same population. It deliberately stops there: the
+   requirements table and the standardization summary inside a card keep the **full** population,
+   because the summary's proposed level is a mode across agencies and computing it over a
+   hand-picked subset would present a region-wide recommendation derived from two agencies. The
+   filter is a display control, not an analytical one.
+   Candidacy is a *filter* and a finding stated inside the capability panel, deliberately not a
+   header badge: the collapsed row has room for one number, and a verdict that needs a sentence
+   of explanation to be fair ("the capability varies and most providers don't ask") belongs where
+   that sentence can sit next to it.
 4. Visual indicator distinguishing questions with resolved upstream/downstream chains from those
    with unresolved free-text references.
 5. A summary view answering the core stakeholder question directly: for a given candidate
    "unified" question, which agencies already ask it in compatible form, and which would need to
    change practice (different requirement level or added proof burden).
-6. Upload of a replacement CSV (same column contract as the source file) that the UI re-renders
+6. **Currently hidden in the UI, machinery retained.** The control is shown only when
+   `VITE_SHOW_CSV_UPLOAD=true` at build time; the default build has no upload affordance. This
+   is a deliberate "keep it, don't show it" state — `handleUpload` and `setData` in `main.ts`
+   stay wired to the flag so they remain type-checked and tested rather than rotting, and a
+   render test asserts both that the control is absent by default and that the flag brings it
+   back. Do not delete the machinery to tidy up; the requirement below still stands.
+
+   Upload of a replacement CSV (same column contract as the source file) that the UI re-renders
    from immediately. The upload is a **session-only preview**: it is parsed entirely in the
    browser, held in memory, never sent anywhere, and discarded on reload. A malformed upload
    (unknown agency, missing columns, parse errors) surfaces the error and leaves the currently
@@ -250,7 +305,13 @@ question/capability links, and comments whose target is not in the displayed dat
 - No unused dependencies, no scaffolding boilerplate left over from a starter template.
 - Semantic HTML and basic ARIA attributes on interactive elements — this is a tool for an
   accessibility-focused transportation program; the tool itself should not be an accessibility
-  failure.
+  failure. The per-agency strip is the one place where meaning is carried by colour, so it is
+  backed up three ways rather than one: a `title` per box for mouse-over, `role="img"` with a
+  single summarising `aria-label` on the strip so assistive technology gets one coherent sentence
+  instead of sixteen unlabelled boxes, and the authoritative per-agency breakdown in the
+  requirements table in the card body. The boxes are deliberately **not** focusable — the strip
+  sits inside a `<summary>`, and making them focusable would add sixteen tab stops per card
+  across dozens of cards.
 - README sufficient for a developer with no project context to run, test, and rebuild data.
 
 ## 7. Technology Stack
@@ -289,7 +350,7 @@ question/capability links, and comments whose target is not in the displayed dat
 ## 9. Repository Structure
 
 ```
-/data/by-question.csv                 # raw agency-survey export, kept unmodified for audit
+/data/by-question.csv                 # agency-survey export + deliberate additions; the question bank
 /data/eligibility-questions.csv       # source of record, hand-edited (cleaned from the above)
 /data/capabilities.csv                # source of record: provider capability matrix
 /data/question-capability-map.csv     # source of record: editorial question -> capability claims
@@ -349,7 +410,13 @@ unless corrected:
    corrected before the normalization output is trustworthy.
 2. **Unresolved links stay visible.** Upstream/downstream references that cannot be matched to a
    question id are displayed as flagged rather than silently discarded. If the intent was for the
-   tool to only show clean, resolved chains, this assumption is wrong.
+   tool to only show clean, resolved chains, this assumption is wrong. As of the current data
+   every reference resolves, so nothing exercises this path. The *rendering* is kept — that is
+   the commitment this item is about, and an uploaded CSV can reintroduce an unresolved link at
+   any time. The "only show questions with unresolved links" **filter** has been removed: with
+   nothing to find it was a control that could only ever empty the list, and the upload path
+   that could reintroduce matches is itself hidden by default (requirement 6). Restore it if a
+   future dataset carries unresolved references again.
 3. **JSON output is committed to the repo**, not generated fresh on every deploy from a build
    secret or external source, since the CSV itself is committed. Confirm this is acceptable before
    assuming the data is non-sensitive enough to commit in plaintext — it is aggregate policy data,
@@ -369,7 +436,7 @@ unless corrected:
 8. **`Community Van` is on the roster but has no intake data.** It appears in
    `data/capabilities.csv` and asks no questions in the intake sheet. Rather than omit it, views
    that list agencies per question derive their population from the question data, so it does not
-   appear as "does not ask" on all 42 questions; the capabilities coverage view names the gap
+   appear as "does not ask" on every question; the capabilities coverage view names the gap
    explicitly instead. Confirm whether its intake questions simply weren't surveyed.
 9. **Agency `kind` classification is an assumption.** `ORCA`, `ORCA (Senior)`, `ORCA (Disabled)`,
    `ORCA LIFT` and `SAP` are treated as fare/pass programs and `Metro Transit Instruction` as
@@ -396,3 +463,12 @@ unless corrected:
     surveyed, several verdicts rest on three or four responses. The counts are displayed alongside
     every verdict so a reader can weigh them, but the analysis will firm up considerably if the
     non-responding agencies are chased.
+13. **`Mailing address same as home address?` was added, not surveyed.** It existed only as a
+    reference from the `Home address` and `Mailing address` rows. It was added deliberately to
+    both `by-question.csv` and `eligibility-questions.csv` as a question in its own right, which
+    is why `by-question.csv` is described in Section 2 as a maintained question bank rather than
+    a frozen export. Because the survey never asked it, it carries no requirement levels or proof
+    burden and its agency columns are blank; the gap is in the survey, not in the sheet. It is
+    recorded here so a later reader does not mistake the blank row for a parsing failure, and so
+    the one open question stays visible: ask the agencies how they handle it, and the columns can
+    be filled in.

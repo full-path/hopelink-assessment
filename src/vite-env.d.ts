@@ -14,6 +14,12 @@ interface ImportMetaEnv {
    * commenting is disabled and the rest of the app renders normally.
    */
   readonly VITE_COMMENTS_ENDPOINT?: string;
+  /**
+   * Set to the string `"true"` to show the "Preview a replacement CSV" control, which is hidden
+   * by default. Anything else, including unset, leaves it hidden; the upload machinery behind it
+   * stays built either way.
+   */
+  readonly VITE_SHOW_CSV_UPLOAD?: string;
 }
 
 interface ImportMeta {

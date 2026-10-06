@@ -100,7 +100,7 @@ export const CANONICAL_AGENCIES: Agency[] = [
     kind: "ride_provider",
     // Appears only in data/capabilities.csv — it reports vehicle capabilities but no intake
     // questions. Views that list agencies per question derive their own list from the question
-    // data so this does not show up as "does not ask" on all 42 questions; the capabilities
+    // data so this does not show up as "does not ask" on every question; the capabilities
     // coverage view names it explicitly instead. See CLAUDE.md Section 11, item 8.
     aliases: ["Community Van"],
   },

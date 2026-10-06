@@ -108,15 +108,53 @@ describe("app render", () => {
     expect(card?.querySelector(".capability-panel")).toBeNull();
   });
 
-  it("marks a differentiating question that few providers ask as a unified intake candidate", async () => {
+  it("marks a unified intake candidate in the capability panel, not in the header", async () => {
     const app = await mountApp();
 
     const oxygen = app.querySelector("#question-do-you-require-portable-oxygen");
-    expect(oxygen?.querySelector(".badge--candidate")).not.toBeNull();
+    // The finding is still made, inside the panel, where there is room to explain it.
+    expect(oxygen?.querySelector(".capability-panel .badge--candidate")).not.toBeNull();
+    expect(oxygen?.querySelector(".capability-panel__coverage")?.textContent).toContain(
+      "still need the answer to route a rider",
+    );
+    // But it is no longer advertised on the collapsed summary line.
+    expect(oxygen?.querySelector(".question-card__summary .badge--candidate")).toBeNull();
 
     // Service animals: every responding provider says yes, so the question routes nobody.
     const serviceAnimal = app.querySelector("#question-do-you-require-a-service-animal");
     expect(serviceAnimal?.querySelector(".badge--candidate")).toBeNull();
+  });
+
+  it("puts no candidate badge on any question header", async () => {
+    const app = await mountApp();
+
+    expect(app.querySelectorAll(".question-card__summary .badge--candidate").length).toBe(0);
+    // The concept is not gone, only moved: some panel still carries it.
+    expect(app.querySelectorAll(".capability-panel .badge--candidate").length).toBeGreaterThan(0);
+  });
+
+  it("shows how many agencies ask each question on every header", async () => {
+    const app = await mountApp();
+
+    const badges = app.querySelectorAll(".question-card__summary .badge--agency-count");
+    expect(badges.length).toBe(app.querySelectorAll(".question-card").length);
+    for (const badge of badges) {
+      expect(badge.textContent).toMatch(/^Asked by \d+ of 16 agencies$/);
+    }
+
+    // Distinct agencies, not requirement rows: Email names 15 agencies across its columns, and
+    // several of them appear in more than one column for it.
+    expect(
+      app.querySelector("#question-email .question-card__summary .badge--agency-count")
+        ?.textContent,
+    ).toBe("Asked by 15 of 16 agencies");
+
+    // Zero is shown rather than hidden — unlike the comment badge, nobody asking is a finding.
+    expect(
+      app.querySelector(
+        "#question-mailing-address-same-as-home-address .question-card__summary .badge--agency-count",
+      )?.textContent,
+    ).toBe("Asked by 0 of 16 agencies");
   });
 
   it("switches to the capabilities view and renders the matrix and coverage table", async () => {
@@ -142,7 +180,7 @@ describe("app render", () => {
     const cards = app.querySelectorAll(".question-card");
     expect(cards.length).toBeGreaterThan(0);
     for (const card of cards) {
-      expect(card.querySelector(".badge--candidate")).not.toBeNull();
+      expect(card.querySelector(".capability-panel .badge--candidate")).not.toBeNull();
     }
   });
 
@@ -337,5 +375,318 @@ describe("app render", () => {
 
     expect(row.querySelector(".comments h4")?.textContent).toBe("Comments (1)");
     expect(row.open).toBe(true);
+  });
+
+  it("shows a data quality note in the question body but never as a header badge", async () => {
+    const app = await mountApp();
+
+    // Roughly half the rows carry a note, so plenty of cards should show one in the body...
+    expect(app.querySelectorAll(".data-quality-note").length).toBeGreaterThan(10);
+    // ...and none should advertise it on the collapsed summary line.
+    expect(app.querySelector(".badge--note")).toBeNull();
+    for (const summary of app.querySelectorAll(".question-card__summary")) {
+      expect(summary.textContent).not.toContain("Data quality note");
+    }
+
+    // The note itself is still labelled where it is rendered.
+    const note = app.querySelector("#question-home-address .data-quality-note");
+    expect(note?.textContent).toContain("Data quality note:");
+  });
+
+  it("resolves the mailing-address chain rather than flagging it unresolved", async () => {
+    const app = await mountApp();
+
+    const added = app.querySelector("#question-mailing-address-same-as-home-address");
+    expect(added).not.toBeNull();
+
+    // Both neighbours previously had a dangling reference to this question.
+    for (const id of ["#question-home-address", "#question-mailing-address"]) {
+      const card = app.querySelector(id);
+      expect(card?.querySelector(".link-item--unresolved")).toBeNull();
+      expect(card?.querySelector(".link-item--resolved a")?.getAttribute("href")).toBe(
+        "#question-mailing-address-same-as-home-address",
+      );
+    }
+  });
+
+  it("declines to propose a requirement level for a question no agency reports", async () => {
+    // The added question has no agency data. Taking a mode over an empty set would print a
+    // confident "Requires documentary proof", which would read as a finding rather than a gap.
+    const app = await mountApp();
+    const card = app.querySelector("#question-mailing-address-same-as-home-address");
+
+    const summary = card?.querySelector(".summary");
+    expect(summary?.textContent).toContain("no basis for proposing");
+    expect(summary?.textContent).not.toContain("Proposed unified requirement level");
+    expect(card?.querySelector(".requirements-table")).toBeNull();
+  });
+
+  it("has no unresolved links left in the committed dataset", async () => {
+    const app = await mountApp();
+
+    expect(app.querySelectorAll(".link-item--unresolved").length).toBe(0);
+    expect(app.querySelector(".badge--warning")).toBeNull();
+    // Resolved chains are still rendered — this asserts an absence of warnings, not of links.
+    expect(app.querySelectorAll(".link-item--resolved").length).toBeGreaterThan(0);
+  });
+
+  it("no longer offers an unresolved-links filter", async () => {
+    const app = await mountApp();
+
+    expect(app.querySelector("#filter-unresolved")).toBeNull();
+    expect(app.textContent).not.toContain("unresolved links");
+    // Removing the filter does not remove the reporting: unresolved links still render as
+    // flagged wherever they occur (CLAUDE.md §11 item 2), there just are none right now.
+    expect(app.querySelectorAll(".link-item--unresolved").length).toBe(0);
+  });
+
+  it("empties out cleanly when a filter combination matches nothing", async () => {
+    // Zip Shuttle only ever marks questions "Required", so pairing it with "Proof Required"
+    // yields nothing. Previously covered via the unresolved filter, kept because an empty
+    // result must render a note rather than a broken list.
+    const app = await mountApp();
+
+    const box = app.querySelector<HTMLInputElement>("#filter-agency-zip-shuttle");
+    if (!box) throw new Error("agency checkbox missing");
+    box.checked = true;
+    box.dispatchEvent(new Event("change"));
+    expect(app.querySelectorAll(".question-card").length).toBeGreaterThan(0);
+
+    const level = app.querySelector<HTMLSelectElement>("#filter-level");
+    if (!level) throw new Error("level filter missing");
+    level.value = "proof_required";
+    level.dispatchEvent(new Event("change"));
+
+    expect(app.querySelectorAll(".question-card").length).toBe(0);
+    expect(app.querySelector(".empty-note")?.textContent).toContain("No questions match");
+    expect(app.querySelector(".result-count")?.textContent).toContain("Showing 0 of 43");
+  });
+
+  it("still links Accessibility needs to its capabilities after dropping the dangling reference", async () => {
+    // The removed Downstream cell gestured at capability data; that relationship lives in
+    // question-capability-map.csv and must be unaffected.
+    const app = await mountApp();
+
+    const card = app.querySelector("#question-accessibility-needs");
+    expect(card?.querySelector(".capability-panel")).not.toBeNull();
+    expect(card?.querySelectorAll(".capability-table tbody tr").length).toBe(6);
+    expect(card?.querySelector(".capability-panel .badge--candidate")).not.toBeNull();
+    // No "Upstream / downstream" block at all now: it has no links in either direction.
+    expect(card?.querySelector(".links")).toBeNull();
+  });
+
+  function boxes(app: HTMLElement, questionId: string): HTMLElement[] {
+    return [
+      ...app.querySelectorAll<HTMLElement>(
+        `#question-${questionId} .question-card__summary .agency-strip .agency-box`,
+      ),
+    ];
+  }
+
+  it("renders one box per agency on every question header", async () => {
+    const app = await mountApp();
+
+    const strips = app.querySelectorAll(".question-card__summary .agency-strip");
+    expect(strips.length).toBe(app.querySelectorAll(".question-card").length);
+    for (const strip of strips) {
+      expect(strip.querySelectorAll(".agency-box").length).toBe(16);
+    }
+  });
+
+  it("keeps box position mapped to the same agency across cards", async () => {
+    // The whole point of the strip: position means "this agency" only if it is identical on
+    // every card, so a reader can scan a column down the list.
+    const app = await mountApp();
+
+    const names = (id: string) =>
+      boxes(app, id).map((b) => (b.getAttribute("title") ?? "").split(" — ")[0]);
+
+    const reference = names("income");
+    expect(reference[0]).toBe("Hyde Shuttle");
+    expect(reference[5]).toBe("ORCA");
+    expect(reference[15]).toBe("Zip Shuttle");
+    expect(names("email")).toEqual(reference);
+    expect(names("mailing-address-same-as-home-address")).toEqual(reference);
+  });
+
+  it("colours each box by the agency's effective requirement level", async () => {
+    // Income exercises every state: proof, required, self-attestation, optional, not asked.
+    const app = await mountApp();
+    const cls = (i: number) => boxes(app, "income")[i]?.getAttribute("class");
+
+    expect(cls(0)).toContain("agency-box--self_attestation"); // Hyde Shuttle
+    expect(cls(2)).toContain("agency-box--required"); // Beyond the Borders
+    expect(cls(5)).toContain("agency-box--proof_required"); // ORCA
+    expect(cls(10)).toContain("agency-box--optional"); // Sound Generations VTS
+    expect(cls(1)).toContain("agency-box--not-asked"); // Northshore Senior Center
+  });
+
+  it("takes the strictest level when an agency appears in several columns", async () => {
+    // ORCA is in Income's self-attestation column as well as its burden-of-proof column. One
+    // agency asking twice is still one box, and proof is the stricter posture.
+    const app = await mountApp();
+    const orca = boxes(app, "income")[5];
+
+    expect(orca?.getAttribute("class")).toContain("agency-box--proof_required");
+    expect(orca?.getAttribute("class")).not.toContain("self_attestation");
+  });
+
+  it("puts agency, level, and proof detail in each box's mouse-over text", async () => {
+    const app = await mountApp();
+    const title = (i: number) => boxes(app, "income")[i]?.getAttribute("title") ?? "";
+
+    expect(title(0)).toBe("Hyde Shuttle — Self-Attestation");
+    expect(title(1)).toBe("Northshore Senior Center — Not asked");
+
+    const orca = title(5);
+    expect(orca.startsWith("ORCA — Proof Required")).toBe(true);
+    expect(orca).toContain("Proof: ProviderOne number OR EBT number");
+
+    // A question nobody asks: every box says so rather than being blank.
+    for (const box of boxes(app, "mailing-address-same-as-home-address")) {
+      expect(box.getAttribute("title")).toContain("Not asked");
+    }
+  });
+
+  it("gives the strip a single accessible label instead of 16 bare boxes", async () => {
+    const app = await mountApp();
+    const strip = app.querySelector("#question-income .agency-strip");
+
+    expect(strip?.getAttribute("role")).toBe("img");
+    const label = strip?.getAttribute("aria-label") ?? "";
+    expect(label).toContain("1 proof required");
+    expect(label).toContain("3 required");
+    expect(label).toContain("10 not asked");
+  });
+
+  it("renders a legend for the strip once above the list", async () => {
+    // 16 boxes in 5 colours are unreadable without a key, so it is part of the feature.
+    const app = await mountApp();
+
+    const legends = app.querySelectorAll(".agency-legend");
+    expect(legends.length).toBe(1);
+    expect(legends[0]?.querySelectorAll(".agency-legend__item").length).toBe(5);
+    expect(legends[0]?.textContent).toContain("16 agencies");
+    expect(legends[0]?.textContent).toContain("Hover a box");
+  });
+
+  function pickAgency(app: HTMLElement, agencyId: string): void {
+    const box = app.querySelector<HTMLInputElement>(`#filter-agency-${agencyId}`);
+    if (!box) throw new Error(`no agency checkbox for ${agencyId}`);
+    box.checked = true;
+    box.dispatchEvent(new Event("change"));
+  }
+
+  it("offers every agency as a checkbox rather than a single-choice dropdown", async () => {
+    const app = await mountApp();
+
+    expect(app.querySelector("select#filter-agency")).toBeNull();
+    const group = app.querySelector("#filter-agency");
+    expect(group?.querySelectorAll('input[type="checkbox"]').length).toBe(16);
+    expect(group?.querySelector("summary")?.textContent).toBe("Agency: all 16");
+  });
+
+  it("narrows the list to questions asked by any selected agency", async () => {
+    const app = await mountApp();
+    const total = app.querySelectorAll(".question-card").length;
+
+    pickAgency(app, "zip-shuttle");
+    const afterOne = app.querySelectorAll(".question-card").length;
+    expect(afterOne).toBeGreaterThan(0);
+    expect(afterOne).toBeLessThan(total);
+
+    // Selections are a union, so adding one can only widen the result.
+    pickAgency(app, "hyde-shuttle");
+    expect(app.querySelectorAll(".question-card").length).toBeGreaterThan(afterOne);
+    expect(app.querySelector("#filter-agency summary")?.textContent).toBe(
+      "Agency: 2 of 16 selected",
+    );
+  });
+
+  it("shows only the selected agencies' boxes, in roster order", async () => {
+    const app = await mountApp();
+
+    // Ticked in reverse roster order on purpose: the strip must not follow click order.
+    pickAgency(app, "zip-shuttle");
+    pickAgency(app, "hyde-shuttle");
+
+    const strip = app.querySelectorAll(".question-card")[0]?.querySelectorAll(".agency-box");
+    expect(strip?.length).toBe(2);
+    expect(strip?.[0]?.getAttribute("title")).toContain("Hyde Shuttle");
+    expect(strip?.[1]?.getAttribute("title")).toContain("Zip Shuttle");
+
+    // Every card agrees, which is what makes a column scannable.
+    for (const card of app.querySelectorAll(".question-card")) {
+      const boxes = card.querySelectorAll(".agency-box");
+      expect(boxes.length).toBe(2);
+      expect(boxes[0]?.getAttribute("title")).toContain("Hyde Shuttle");
+    }
+  });
+
+  it("counts against the selection so the badge and the boxes agree", async () => {
+    const app = await mountApp();
+    pickAgency(app, "hyde-shuttle");
+
+    const card = app.querySelector("#question-income");
+    expect(card?.querySelector(".badge--agency-count")?.textContent).toBe(
+      "Asked by 1 of 1 selected agencies",
+    );
+    expect(card?.querySelectorAll(".agency-box").length).toBe(1);
+
+    expect(app.querySelector(".agency-legend")?.textContent).toContain("one box per selected");
+  });
+
+  it("keeps the standardization summary on the full population while filtered", async () => {
+    // The strip is a display and narrows; the summary is an analysis whose proposed level is a
+    // mode across agencies, so a hand-picked subset must not reach it.
+    const app = await mountApp();
+    const postureCount = () =>
+      app.querySelectorAll("#question-income .summary .posture-group li").length;
+
+    const before = postureCount();
+    pickAgency(app, "hyde-shuttle");
+    expect(postureCount()).toBe(before);
+    expect(before).toBe(16);
+  });
+
+  it("restores everything when the selection is cleared", async () => {
+    const app = await mountApp();
+    const total = app.querySelectorAll(".question-card").length;
+
+    pickAgency(app, "zip-shuttle");
+    expect(app.querySelectorAll(".question-card").length).toBeLessThan(total);
+
+    const clear = app.querySelector<HTMLButtonElement>("#filter-agency-clear");
+    expect(clear?.disabled).toBe(false);
+    clear?.click();
+
+    expect(app.querySelectorAll(".question-card").length).toBe(total);
+    expect(app.querySelectorAll(".question-card")[0]?.querySelectorAll(".agency-box").length).toBe(
+      16,
+    );
+    expect(app.querySelector("#filter-agency summary")?.textContent).toBe("Agency: all 16");
+    expect(app.querySelector<HTMLButtonElement>("#filter-agency-clear")?.disabled).toBe(true);
+  });
+
+  it("hides the replacement-CSV control by default", async () => {
+    const app = await mountApp();
+
+    expect(app.querySelector(".data-source")).toBeNull();
+    expect(app.querySelector("#data-source-file")).toBeNull();
+    expect(app.textContent).not.toContain("Preview a replacement CSV");
+    // The rest of the page is unaffected.
+    expect(app.querySelectorAll(".question-card").length).toBeGreaterThan(20);
+    expect(app.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+
+  it("restores the replacement-CSV control when the build flag is set", async () => {
+    // The point of hiding it behind a flag rather than deleting it: the upload path is still
+    // wired up and one env var away, not waiting to be rebuilt from scratch.
+    vi.stubEnv("VITE_SHOW_CSV_UPLOAD", "true");
+    const app = await mountApp();
+
+    expect(app.querySelector(".data-source")).not.toBeNull();
+    expect(app.querySelector<HTMLInputElement>("#data-source-file")?.type).toBe("file");
+    expect(app.textContent).toContain("Preview a replacement CSV");
   });
 });

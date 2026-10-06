@@ -19,6 +19,15 @@
   --color-candidate-text: #027a48;
   --color-candidate-border: #6cca9b;
   --color-surface: #f8fafc;
+  /* Requirement-strictness ramp for the per-agency strip. One hue, four steps, strictest
+     darkest — the levels are ordered, so a sequential scale reads as density where five
+     unrelated hues would just be a code to memorise. "Not asked" sits outside the ramp. */
+  --color-level-proof_required: #1e3a8a;
+  --color-level-required: #2563eb;
+  --color-level-self_attestation: #7aa9f7;
+  --color-level-optional: #c7dbfd;
+  --color-level-not-asked: #eceff3;
+  --color-level-edge: #c3cad4;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -43,6 +52,13 @@
     --color-candidate-text: #6ee7a8;
     --color-candidate-border: #2f6b4c;
     --color-surface: #171b21;
+    /* Inverted: on a dark ground the strictest level is the lightest, not the darkest. */
+    --color-level-proof_required: #cfe0fd;
+    --color-level-required: #6ea8fe;
+    --color-level-self_attestation: #3b6fc4;
+    --color-level-optional: #26416e;
+    --color-level-not-asked: #272c34;
+    --color-level-edge: #3d4450;
   }
 }
 
@@ -141,10 +157,57 @@ body {
   font-size: 0.9rem;
 }
 
-.filters__field--checkbox {
-  flex-direction: row;
+/* The agency multiselect. Sits in the same flex row as the other fields but owns a whole
+   column, since an open 16-item list is tall. */
+.filters__agencies {
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  align-self: start;
+}
+
+.filters__agencies > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.filters__agency-list {
+  display: grid;
+  /* Two columns where there is room: 16 single-file checkboxes push the list out of view. */
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.25rem 1rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.filters__checkbox {
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
+}
+
+.filters__checkbox label {
+  font-weight: 400;
+}
+
+.filters__clear {
+  font: inherit;
+  font-size: 0.85rem;
+  justify-self: start;
+  margin-top: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.filters__clear:disabled {
+  color: var(--color-muted);
+  cursor: default;
 }
 
 .filters select {
@@ -209,9 +272,11 @@ body {
   border: 1px solid var(--color-warning-border);
 }
 
-.badge--note {
-  background: var(--color-note-bg);
-  color: var(--color-note-text);
+/* On every card, so deliberately quiet: metadata, not a finding. */
+.badge--agency-count {
+  background: var(--color-surface);
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
 }
 
 .badge--comments {
@@ -756,4 +821,73 @@ summary:focus-visible,
 
 .comment-form__status.is-error {
   color: var(--color-needs-change);
+}
+
+/* --- Per-agency requirement strip ------------------------------------- */
+
+.agency-strip {
+  display: inline-flex;
+  gap: 2px;
+  /* Never let the strip stretch or compress: box position means "this agency", and it only
+     means that if it is identical on every card. */
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.agency-box {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  /* A hairline keeps the palest steps visible against the card background. */
+  border: 1px solid var(--color-level-edge);
+  box-sizing: border-box;
+}
+
+.agency-box--proof_required {
+  background: var(--color-level-proof_required);
+}
+.agency-box--required {
+  background: var(--color-level-required);
+}
+.agency-box--self_attestation {
+  background: var(--color-level-self_attestation);
+}
+.agency-box--optional {
+  background: var(--color-level-optional);
+}
+.agency-box--not-asked {
+  background: var(--color-level-not-asked);
+}
+
+.agency-legend {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.agency-legend__intro {
+  margin: 0 0 0.4rem;
+  max-width: 70ch;
+}
+
+.agency-legend__key {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+}
+
+.agency-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+@media (max-width: 640px) {
+  /* The question text takes the first line; let the strip wrap below it rather than squeezing. */
+  .question-card__text {
+    flex: 1 1 100%;
+  }
 }

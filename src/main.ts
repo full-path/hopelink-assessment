@@ -9,6 +9,7 @@ import { h, clear } from "./dom";
 import { renderDataSourceBar, type DataSource } from "./components/dataSourceBar";
 import { renderFilters, type FilterState } from "./components/filters";
 import { renderQuestionCard } from "./components/questionCard";
+import { renderAgencyStripLegend } from "./components/agencyStrip";
 import { renderCapabilitiesView } from "./components/capabilitiesView";
 import { focusActiveTab, renderViewTabs, type ViewId } from "./components/viewTabs";
 import type { CapabilityContext } from "./components/capabilityPanel";
@@ -20,9 +21,8 @@ import { renderCommentOrphanNotice, type CommentContext } from "./components/com
 const BUNDLED = bundledData as NormalizedData;
 const CAPABILITIES = bundledCapabilities as CapabilityData;
 const DEFAULT_FILTERS: FilterState = {
-  agencyId: "all",
+  agencyIds: [],
   level: "all",
-  onlyUnresolved: false,
   capability: "all",
 };
 
@@ -31,6 +31,21 @@ const DEFAULT_FILTERS: FilterState = {
  * anything else. See `createCommentsClient` — that is a supported build, not a broken one.
  */
 const commentsClient = createCommentsClient(import.meta.env.VITE_COMMENTS_ENDPOINT);
+
+/**
+ * Whether to show the "Preview a replacement CSV" control.
+ *
+ * Hidden for now by request. The machinery behind it is deliberately left intact and wired up —
+ * `handleUpload`, `setData`, and the shared in-browser normalization path they drive — so that
+ * restoring the control is this one flag rather than an archaeology exercise. Keeping the glue
+ * referenced also keeps it type-checked, which is what stops it rotting while it is off.
+ *
+ * Off unless `VITE_SHOW_CSV_UPLOAD=true` at build time. An env flag rather than a hardcoded
+ * constant so the control can be brought back for a stakeholder session without editing code,
+ * and so the build is the thing that decides — the same arrangement `VITE_COMMENTS_ENDPOINT`
+ * already uses.
+ */
+const SHOW_DATA_SOURCE_BAR = import.meta.env.VITE_SHOW_CSV_UPLOAD === "true";
 
 let data: NormalizedData = BUNDLED;
 let source: DataSource = { kind: "bundled" };
@@ -128,10 +143,11 @@ function buildCapabilityContext(
   };
 }
 
-function questionMatches(question: IntakeQuestion, context: CapabilityContext): boolean {
-  if (state.onlyUnresolved && (question.unresolvedLinks?.length ?? 0) === 0) {
-    return false;
-  }
+function questionMatches(
+  question: IntakeQuestion,
+  context: CapabilityContext,
+  selectedAgencyIds: Set<string>,
+): boolean {
   if (state.capability !== "all") {
     const links = context.linksByQuestionId.get(question.id) ?? [];
     if (links.length === 0) return false;
@@ -143,9 +159,12 @@ function questionMatches(question: IntakeQuestion, context: CapabilityContext): 
       return false;
     }
   }
-  if (state.agencyId !== "all" || state.level !== "all") {
+  if (selectedAgencyIds.size > 0 || state.level !== "all") {
+    // A question survives if any single requirement satisfies both filters at once: selecting
+    // two agencies and "Proof Required" means "asked with proof by either of them", not
+    // "required by one and proof-demanded by the other".
     const hasMatch = question.requirements.some((req) => {
-      const agencyOk = state.agencyId === "all" || req.agencyId === state.agencyId;
+      const agencyOk = selectedAgencyIds.size === 0 || selectedAgencyIds.has(req.agencyId);
       const levelOk = state.level === "all" || req.level === state.level;
       return agencyOk && levelOk;
     });
@@ -162,8 +181,25 @@ function renderQuestionsPanel(
   comments: CommentContext,
 ): HTMLElement {
   const questionById = new Map<string, IntakeQuestion>(questions.map((q) => [q.id, q]));
-  const filtered = questions.filter((question) => questionMatches(question, context));
   const summaryAgencyIds = intakeAgencies.map((agency) => agency.id);
+
+  const selectedAgencyIds = new Set(state.agencyIds);
+  const filtered = questions.filter((question) =>
+    questionMatches(question, context, selectedAgencyIds),
+  );
+
+  /**
+   * The agencies the header strip shows: the selection when there is one, otherwise everybody.
+   *
+   * Derived from the roster rather than from `state.agencyIds` directly so the order is the
+   * roster's, which is what keeps box position meaning the same agency on every card. The
+   * standardization summary and the requirements table deliberately keep the *full* population —
+   * see the note on QuestionCardProps.stripAgencyIds.
+   */
+  const agencyFilterActive = selectedAgencyIds.size > 0;
+  const stripAgencyIds = agencyFilterActive
+    ? summaryAgencyIds.filter((id) => selectedAgencyIds.has(id))
+    : summaryAgencyIds;
 
   return h(
     "div",
@@ -178,6 +214,7 @@ function renderQuestionsPanel(
       { className: "result-count", role: "status" },
       `Showing ${String(filtered.length)} of ${String(questions.length)} questions`,
     ),
+    renderAgencyStripLegend(stripAgencyIds.length, agencyFilterActive),
     h(
       "div",
       { className: "question-list" },
@@ -188,6 +225,8 @@ function renderQuestionsPanel(
               agencyById,
               questionById,
               summaryAgencyIds,
+              stripAgencyIds,
+              agencyFilterActive,
               capabilityContext: context,
               commentContext: comments,
             }),
@@ -271,7 +310,7 @@ function render(): void {
           "standardizing a question would require an agency to change what it asks for.",
       ),
     ),
-    dataSourceEl,
+    ...(SHOW_DATA_SOURCE_BAR ? [dataSourceEl] : []),
     tabsEl,
     panelEl,
   );
