@@ -382,7 +382,8 @@ function render(): void {
     },
   });
 
-  sheetStatusEl = renderSheetStatus(sheetState, applyPendingSheet);
+  const sheetStatus = renderSheetStatus(sheetState, applyPendingSheet);
+  sheetStatusEl = sheetStatus;
 
   const tabsEl = renderViewTabs(view, (next) => {
     view = next;
@@ -423,7 +424,7 @@ function render(): void {
           "standardizing a question would require an agency to change what it asks for.",
       ),
     ),
-    sheetStatusEl,
+    sheetStatus,
     ...(SHOW_DATA_SOURCE_BAR ? [dataSourceEl] : []),
     tabsEl,
     panelEl,
