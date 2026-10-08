@@ -6,6 +6,7 @@
   "description": "Unified intake question explorer for Hopelink's Find a Ride pilot agencies.",
   "scripts": {
     "build-data": "tsx scripts/build-data.ts",
+    "pull-sheet": "tsx scripts/pull-sheet.ts",
     "dev": "npm run build-data && vite",
     "build": "npm run build-data && tsc -p tsconfig.app.json --noEmit && vite build",
     "preview": "vite preview",

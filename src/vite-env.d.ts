@@ -20,6 +20,16 @@ interface ImportMetaEnv {
    * stays built either way.
    */
   readonly VITE_SHOW_CSV_UPLOAD?: string;
+  /**
+   * Published-to-web CSV URLs of the live Google Sheet's four tabs (README, "Live data from a
+   * Google Sheet"). Public by construction — publishing a tab makes it readable by anyone with
+   * the URL. Set all four or none: with none, the app shows the bundled snapshot only; with some,
+   * it reports the gap and shows the snapshot. See `readSheetConfig` in `src/sheetSource.ts`.
+   */
+  readonly VITE_SHEET_AGENCIES_CSV_URL?: string;
+  readonly VITE_SHEET_QUESTIONS_CSV_URL?: string;
+  readonly VITE_SHEET_CAPABILITIES_CSV_URL?: string;
+  readonly VITE_SHEET_CAPABILITY_MAP_CSV_URL?: string;
 }
 
 interface ImportMeta {

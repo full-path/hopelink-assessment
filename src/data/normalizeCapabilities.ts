@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import type {
+  Agency,
   AgencyCapability,
   AgencyCapabilityProfile,
   Capability,
@@ -8,7 +9,7 @@ import type {
   IntakeQuestion,
   QuestionCapabilityLink,
 } from "./types";
-import { resolveAgencyId } from "./agencies";
+import { createAgencyResolver, type AgencyResolver } from "./agencies";
 import { normalizeWhitespace, slugify } from "./text";
 
 /**
@@ -63,14 +64,20 @@ export function parseCapabilityValue(raw: string): ParsedCapabilityValue {
   return { value: "conditional", qualifier: text };
 }
 
-/** One row of the capabilities matrix: the agency column plus one column per capability. */
-type CapabilityRow = Record<string, string>;
-
-function parseMatrixCsv(csvText: string): {
+/**
+ * Parses the matrix as raw rows rather than in papaparse's header mode. Header mode renames a
+ * blank header cell to `_1`, `_2`, … — and a spreadsheet tab readily carries trailing empty
+ * columns — which would turn an empty column into a phantom capability. Working by position lets
+ * a blank-headed column be dropped when it is empty and rejected when it holds answers.
+ */
+function parseMatrixCsv(
+  csvText: string,
+  resolveAgencyId: AgencyResolver,
+): {
   capabilities: Capability[];
   profiles: AgencyCapabilityProfile[];
 } {
-  const result = Papa.parse<CapabilityRow>(csvText, { header: true, skipEmptyLines: true });
+  const result = Papa.parse<string[]>(csvText, { header: false, skipEmptyLines: true });
   if (result.errors.length > 0) {
     const details = result.errors
       .map((e) => `${e.type}: ${e.message} (row ${String(e.row)})`)
@@ -78,7 +85,9 @@ function parseMatrixCsv(csvText: string): {
     throw new Error(`Capabilities CSV parse errors:\n${details}`);
   }
 
-  const header = (result.meta.fields ?? []).map(normalizeWhitespace);
+  const [headerRow = [], ...rows] = result.data;
+  // A UTF-8 byte-order mark survives into the first header cell; it is not part of the name.
+  const header = headerRow.map((cell) => normalizeWhitespace(cell.replace(/^\uFEFF/, "")));
   if (header[0] !== AGENCY_COLUMN) {
     throw new Error(
       `Capabilities CSV must start with an "${AGENCY_COLUMN}" column. Found: ` +
@@ -86,12 +95,26 @@ function parseMatrixCsv(csvText: string): {
     );
   }
 
-  const capabilityColumns = header.slice(1).filter((column) => column.length > 0);
+  const capabilityColumns: { index: number; label: string }[] = [];
+  header.forEach((label, index) => {
+    if (index === 0) return;
+    if (label) {
+      capabilityColumns.push({ index, label });
+      return;
+    }
+    const answered = rows.find((row) => normalizeWhitespace(row[index] ?? "").length > 0);
+    if (answered) {
+      throw new Error(
+        `Capabilities CSV column ${String(index + 1)} has answers but no capability name in ` +
+          `its header (first answer: "${answered[index] ?? ""}" for "${answered[0] ?? ""}").`,
+      );
+    }
+  });
   if (capabilityColumns.length === 0) {
     throw new Error(`Capabilities CSV has an "${AGENCY_COLUMN}" column but no capability columns.`);
   }
 
-  const capabilities: Capability[] = capabilityColumns.map((label) => ({
+  const capabilities: Capability[] = capabilityColumns.map(({ label }) => ({
     id: slugify(label),
     label,
   }));
@@ -108,8 +131,8 @@ function parseMatrixCsv(csvText: string): {
 
   const seenAgencies = new Set<string>();
   const profiles: AgencyCapabilityProfile[] = [];
-  for (const row of result.data) {
-    const rawName = normalizeWhitespace(row[AGENCY_COLUMN] ?? "");
+  for (const row of rows) {
+    const rawName = normalizeWhitespace(row[0] ?? "");
     if (!rawName) {
       continue;
     }
@@ -119,12 +142,12 @@ function parseMatrixCsv(csvText: string): {
     }
     seenAgencies.add(agencyId);
 
-    const entries: AgencyCapability[] = capabilityColumns.map((label, index) => {
-      const capability = capabilities[index];
+    const entries: AgencyCapability[] = capabilityColumns.map(({ index, label }, position) => {
+      const capability = capabilities[position];
       if (capability === undefined) {
         throw new Error(`Internal error: no capability for column "${label}"`);
       }
-      const parsed = parseCapabilityValue(row[label] ?? "");
+      const parsed = parseCapabilityValue(row[index] ?? "");
       return {
         capabilityId: capability.id,
         value: parsed.value,
@@ -199,8 +222,12 @@ function parseQuestionCapabilityMap(csvText: string, capabilities: Capability[])
 export function normalizeCapabilitiesCsv(
   capabilitiesCsvText: string,
   questionMapCsvText: string,
+  agencies: Agency[],
 ): CapabilityData {
-  const { capabilities, profiles } = parseMatrixCsv(capabilitiesCsvText);
+  const { capabilities, profiles } = parseMatrixCsv(
+    capabilitiesCsvText,
+    createAgencyResolver(agencies),
+  );
   const questionLinks = parseQuestionCapabilityMap(questionMapCsvText, capabilities);
   return { capabilities, profiles, questionLinks };
 }

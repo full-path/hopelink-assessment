@@ -1,11 +1,12 @@
 import { h } from "../dom";
 
-export type DataSource = { kind: "bundled" } | { kind: "uploaded"; fileName: string };
+export type DataSource =
+  { kind: "bundled" } | { kind: "sheet" } | { kind: "uploaded"; fileName: string };
 
 /**
  * Control bar for swapping the dataset the app displays: upload a replacement CSV
  * (parsed entirely in the browser, held in memory for this session only) or return
- * to the bundled dataset generated from the committed source-of-record CSV.
+ * to the published dataset — the live sheet if it loaded, otherwise the bundled snapshot.
  */
 export function renderDataSourceBar(options: {
   source: DataSource;
@@ -28,8 +29,10 @@ export function renderDataSourceBar(options: {
   const sourceLabel =
     source.kind === "bundled"
       ? "Showing the bundled dataset (data/eligibility-questions.csv)."
-      : `Showing uploaded file "${source.fileName}" — this preview lives only in your browser ` +
-        "for this session and is discarded on reload.";
+      : source.kind === "sheet"
+        ? "Showing the live Google Sheet."
+        : `Showing uploaded file "${source.fileName}" — this preview lives only in your browser ` +
+          "for this session and is discarded on reload.";
 
   return h(
     "section",
@@ -43,7 +46,7 @@ export function renderDataSourceBar(options: {
         ? h(
             "button",
             { type: "button", className: "data-source__reset", onClick: onReset },
-            "Reset to bundled data",
+            "Reset to published data",
           )
         : undefined,
     ),

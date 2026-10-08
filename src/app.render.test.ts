@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -733,5 +734,143 @@ describe("app render", () => {
     for (const swatch of app.querySelectorAll(".agency-legend .agency-box")) {
       expect(swatch.hasAttribute("data-tip")).toBe(false);
     }
+  });
+});
+
+describe("live sheet", () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf-8");
+  const TABS = {
+    VITE_SHEET_AGENCIES_CSV_URL: ["https://sheet.test/agencies", read("../data/agencies.csv")],
+    VITE_SHEET_QUESTIONS_CSV_URL: [
+      "https://sheet.test/questions",
+      read("../data/eligibility-questions.csv"),
+    ],
+    VITE_SHEET_CAPABILITIES_CSV_URL: [
+      "https://sheet.test/capabilities",
+      read("../data/capabilities.csv"),
+    ],
+    VITE_SHEET_CAPABILITY_MAP_CSV_URL: [
+      "https://sheet.test/map",
+      read("../data/question-capability-map.csv"),
+    ],
+  } as const;
+  const ADDED_QUESTION = "Do you travel with a bicycle\n";
+
+  /**
+   * Mounts the app with the sheet configured and its fetches held until `release()`, so a test
+   * can put the page into a given state (a card open, say) before the sheet answers — which is
+   * the window the swap logic exists to handle.
+   */
+  async function mountWithSheet(questionsCsv?: string) {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const bodies = new Map<string, string>();
+    for (const [name, [url, body]] of Object.entries(TABS)) {
+      vi.stubEnv(name, url);
+      bodies.set(url, body);
+    }
+    if (questionsCsv !== undefined) bodies.set(TABS.VITE_SHEET_QUESTIONS_CSV_URL[0], questionsCsv);
+
+    const fetchMock = vi.fn(async (url: string) => {
+      await gate;
+      return new Response(bodies.get(url) ?? "", { status: bodies.has(url) ? 200 : 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const app = await mountApp();
+    return { app, fetchMock, release };
+  }
+
+  const statusText = (app: HTMLElement) => app.querySelector(".sheet-status")?.textContent ?? "";
+  const withAddedQuestion = () =>
+    `${TABS.VITE_SHEET_QUESTIONS_CSV_URL[1]}${ADDED_QUESTION.trim()},Hyde Shuttle,,,,,,\n`;
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("makes no request and shows no status line when no sheet is configured", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await mountApp();
+
+    expect(app.querySelector(".sheet-status")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("paints the snapshot before the sheet answers", async () => {
+    const { app } = await mountWithSheet();
+
+    expect(app.querySelectorAll(".question-card").length).toBeGreaterThan(20);
+    expect(statusText(app)).toContain("Checking the live sheet");
+  });
+
+  it("only updates the status line when the sheet matches the snapshot", async () => {
+    const { app, release } = await mountWithSheet();
+    const card = app.querySelector<HTMLDetailsElement>("#question-phone");
+    if (card) card.open = true;
+
+    release();
+    await vi.waitFor(() => {
+      expect(statusText(app)).toContain("Showing live data");
+    });
+    // Same element, still open: nothing was re-rendered.
+    expect(app.querySelector("#question-phone")).toBe(card);
+    expect(card?.open).toBe(true);
+  });
+
+  it("applies a changed sheet at once when the reader is idle", async () => {
+    const { app, release } = await mountWithSheet(withAddedQuestion());
+    expect(app.querySelector("#question-do-you-travel-with-a-bicycle")).toBeNull();
+
+    release();
+    await vi.waitFor(() => {
+      expect(app.querySelector("#question-do-you-travel-with-a-bicycle")).not.toBeNull();
+    });
+    expect(statusText(app)).toContain("Showing live data");
+  });
+
+  it("offers a changed sheet instead of collapsing a card the reader has open", async () => {
+    const { app, release } = await mountWithSheet(withAddedQuestion());
+    const card = app.querySelector<HTMLDetailsElement>("#question-phone");
+    if (card) card.open = true;
+
+    release();
+    await vi.waitFor(() => {
+      expect(statusText(app)).toContain("updated since this page was published");
+    });
+    expect(card?.open).toBe(true);
+    expect(app.querySelector("#question-do-you-travel-with-a-bicycle")).toBeNull();
+
+    app.querySelector<HTMLButtonElement>(".sheet-status__apply")?.click();
+    expect(app.querySelector("#question-do-you-travel-with-a-bicycle")).not.toBeNull();
+    expect(statusText(app)).toContain("Showing live data");
+  });
+
+  it("keeps the snapshot and says why when the sheet is invalid", async () => {
+    const invalid = `${TABS.VITE_SHEET_QUESTIONS_CSV_URL[1]}A question,Unlisted Agency,,,,,,\n`;
+    const { app, release } = await mountWithSheet(invalid);
+    const before = app.querySelectorAll(".question-card").length;
+
+    release();
+    await vi.waitFor(() => {
+      expect(app.querySelector(".sheet-status--error")).not.toBeNull();
+    });
+    expect(statusText(app)).toContain('Unrecognized agency name "Unlisted Agency"');
+    expect(app.querySelectorAll(".question-card").length).toBe(before);
+  });
+
+  it("reports a partly configured sheet without fetching any of it", async () => {
+    vi.stubEnv("VITE_SHEET_AGENCIES_CSV_URL", "https://sheet.test/agencies");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await mountApp();
+
+    expect(statusText(app)).toContain("only partly configured");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(app.querySelectorAll(".question-card").length).toBeGreaterThan(20);
   });
 });

@@ -11,8 +11,11 @@ concrete: a capability every provider offers equally cannot route a rider anywhe
 about it does no work — while a capability that differs between providers, asked about by only one
 of them, is the strongest candidate for a shared intake question.
 
-The CSVs in `/data` are normalized at build time into typed JSON files that the static frontend
-loads as its default dataset. The same normalization logic also runs in the browser, so a viewer
+The data can live in a published Google Sheet that program staff edit directly: the page paints
+at once from a snapshot compiled into the build, then fetches the sheet in the background and
+switches to it, so an edit shows up on the next page load without a rebuild. See "Live data from
+a Google Sheet" below. The snapshot is the CSVs in `/data`, normalized at build time into typed
+JSON files; with no sheet configured, that snapshot is simply the data. The same normalization logic also runs in the browser, so a viewer
 can upload a replacement CSV and preview it in place. That control is currently hidden — see
 "Previewing a replacement CSV" below for how to turn it back on.
 
@@ -49,6 +52,7 @@ starts the Vite dev server.
 | `npm run dev`                     | Rebuilds the data JSON, then starts the dev server.                            |
 | `npm run build`                   | Rebuilds data, type-checks, and produces a static production build in `dist/`. |
 | `npm run build-data`              | Runs only the CSV → JSON normalization step (`scripts/build-data.ts`).         |
+| `npm run pull-sheet`              | Copies the live Google Sheet into `/data`, validating it first.                |
 | `npm test`                        | Runs the normalization/analysis unit tests and the app render test (Vitest).   |
 | `npm run lint`                    | ESLint, including type-aware rules.                                            |
 | `npm run format` / `format:check` | Prettier write / check.                                                        |
@@ -56,8 +60,19 @@ starts the Vite dev server.
 
 ## Updating the data
 
-There is no in-app _editing_ UI by design (see CLAUDE.md, Section 10). To permanently reflect a
-change in agency intake practice:
+There is no in-app _editing_ UI by design (see CLAUDE.md, Section 10). The editing surface is
+either the Google Sheet or the CSVs.
+
+**With a live sheet configured** (the normal case once it is set up): edit the sheet. Readers see
+the change on their next page load, within a few minutes (see "How fresh is it?" below). Every so
+often a developer refreshes the snapshot:
+
+1. `npm run pull-sheet` — copies the four tabs into `/data`, refusing if the sheet would not load.
+2. `npm run build-data` — regenerates the JSON in `src/data/`.
+3. Review the diff and commit both. The git history is the audit trail of what changed in the sheet;
+   the sheet's own version history covers the edits in between.
+
+**With no sheet configured**:
 
 1. Edit the relevant CSV in `/data` directly (see "Source files" below).
 2. Run `npm run build-data` (or just `npm run dev` / `npm run build`, which do this automatically).
@@ -67,6 +82,7 @@ change in agency intake practice:
 
 | File                               | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data/agencies.csv`                | The agency roster: one row per agency, with its `Kind` and any alternative spellings (`Aliases`) the other files may use. Every agency name in every other file must match a name or alias here. See "The agency roster" below.                                                                                                                                                                                                                                           |
 | `data/eligibility-questions.csv`   | The intake questions — source of record. Cleaned from `data/by-question.csv`, the agency-survey export, kept alongside it so the cleanup is auditable. That file is a maintained question bank, not a frozen receipt — a question may be added to it deliberately (CLAUDE.md §11 item 13) — but it is never edited to restate what an agency answered.                                                                                                                    |
 | `data/capabilities.csv`            | One row per ride provider, one column per capability. Answers are free text; the normalizer maps them to `yes` / `no` / `conditional` / `unknown` and keeps the agency's own wording as a qualifier. **A blank cell means `unknown`, never `no`** — three agencies returned an entirely blank row.                                                                                                                                                                        |
 | `data/question-capability-map.csv` | Which question exists to determine which capability. This is an _editorial_ claim — nothing in the other two files asserts it — so each row carries a `Note` explaining the reasoning, and the file lives in `/data` rather than in code so a non-developer can review it. Capability names must match a column header of `capabilities.csv` exactly, or the build fails. Question text must match a `Question` cell exactly, or the build warns and the link is dropped. |
@@ -88,12 +104,13 @@ file (same columns as described below) re-renders the whole UI — list, filters
 standardization summaries — from that file instead of the bundled data.
 
 - The file is parsed **entirely in the browser** and never uploaded anywhere; there is no server.
-- The preview lasts only for the current session and is discarded on reload. "Reset to bundled
-  data" returns to the committed dataset immediately.
+  Agency names are resolved against the roster currently in use (the live sheet's, if it loaded).
+- The preview lasts only for the current session and is discarded on reload. "Reset to published
+  data" returns to the live sheet, or to the snapshot if the sheet is not in use.
 - A file that fails normalization (unknown agency name, missing columns, malformed CSV) shows the
   error and leaves the currently displayed data untouched — the same strictness the build step
   applies, from the same shared code (`src/data/normalize.ts`).
-- Upload replaces the **intake questions only**. Capability data stays the committed set, and the
+- Upload replaces the **intake questions only**. Capability data stays the published set, and the
   question/capability map is re-resolved against the uploaded questions: links whose question text
   no longer matches are reported at the top of the Provider capabilities view rather than silently
   vanishing.
@@ -115,15 +132,96 @@ Use this to sanity-check a CSV revision with stakeholders before committing it; 
 | `Upstream Q's` / `Downstream Q's` | The **exact text** of another row's `Question` cell that gates this one. A cell may name several questions, separated by semicolons (commas are unsafe here too — question text contains them, e.g. `Special directions (gate code, etc)`). Text that doesn't exactly match another `Question` cell is preserved and surfaced in the UI as an unresolved link rather than silently dropped — the normalization script does not fuzzy-match or paraphrase-match, by design (see CLAUDE.md Section 3). |
 | `Data Quality Notes`              | Free text, optional. Anything here is carried through verbatim and shown in the UI next to the question it annotates. Use it to flag things a human should double check (contradictory cells, ambiguous references) rather than silently editing the four columns above.                                                                                                                                                                                                                             |
 
-An agency name not already in `CANONICAL_AGENCIES` (`src/data/agencies.ts`) fails the build — and
-is rejected by the in-app upload preview — rather than being silently mis-parsed. Add it to that
-table (with any alias spellings you want tolerated) before it will parse. That roster is shared by
-all three CSVs, so `SG VTS` in the capabilities sheet and `Sound Generations VTS` in the intake
-sheet resolve to the same agency.
+### The agency roster
 
-Each agency also carries a `kind` — `ride_provider`, `fare_program`, or `travel_training`. It
-exists so the capabilities view can tell "this provider was never surveyed" apart from "this is a
-fare program and has no vehicles to describe". Set it when you add an agency.
+`data/agencies.csv` (the **Agencies** tab of the live sheet) is the one place agency naming is
+reconciled. An agency name that is not on it — as a name or an alias — fails the build, is
+rejected by the live sheet loader and by the upload preview, rather than being silently
+mis-parsed. The roster is shared by all the other files, so `SG VTS` in the capabilities sheet and
+`Sound Generations VTS` in the intake sheet resolve to the same agency.
+
+| Column    | Content                                                                                                                                                                                                                                      |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Agency`  | The display name. The agency's id is derived from it, so it must be unique (ignoring case and punctuation). Renaming an agency is safe; nothing persistent is keyed by agency.                                                               |
+| `Kind`    | `Ride provider`, `Fare program`, or `Travel training`. It is how the capabilities view tells "this provider was never surveyed" apart from "this is a fare program and has no vehicles to describe". Anything else is rejected.              |
+| `Aliases` | Optional. Other spellings the other files may use, separated by semicolons (`SG VTS; Sound Generations`). Matching ignores case and extra spaces, so `Beyond the borders` needs no alias — but an alias claimed by two agencies is an error. |
+| `Note`    | Optional, for editors only; not shown in the app. Records why a row is the way it is.                                                                                                                                                        |
+
+To add an agency, add a row here first, then use its name in the other tabs.
+
+## Live data from a Google Sheet
+
+The app can read its data from a Google Sheet that staff edit, instead of only from the snapshot
+built into the site. It is optional: with no sheet configured the site works exactly as it always
+has.
+
+### How it behaves
+
+- **The page never waits for the sheet.** It paints immediately from the snapshot, then fetches
+  the four tabs in the background. Page load time is unchanged; the sheet adds roughly 0.5–2
+  seconds _after_ first paint, and about 5 KB of transfer.
+- **If the sheet matches the snapshot**, only the status line under the header changes.
+- **If it differs and the reader is idle**, the page switches to it at once, keeping their filters.
+- **If it differs and the reader is busy** — a question card open, or focus inside the page (typing
+  a comment, using a filter) — the page offers a "Show the latest data" button rather than
+  rebuilding the page under them.
+- **If the sheet is unreachable or invalid**, the page keeps the snapshot and says so, with the
+  reason: an unknown agency name, a missing column, a tab that is not published. The sheet is
+  checked by the same code as a build (`normalizeDataset` in `src/data/dataset.ts`), and is
+  accepted or rejected as a whole — the page never shows half a sheet.
+
+### How fresh is it?
+
+Google caches published output for about five minutes, so an edit typically appears within five
+minutes, not instantly. Nothing in the app can shorten that.
+
+### Setting it up
+
+1. Create a Google Sheet with four tabs, and import each CSV into its own tab (File → Import →
+   Upload → "Insert new sheet(s)"):
+
+   | Tab name                  | Import                             |
+   | ------------------------- | ---------------------------------- |
+   | `Agencies`                | `data/agencies.csv`                |
+   | `Questions`               | `data/eligibility-questions.csv`   |
+   | `Capabilities`            | `data/capabilities.csv`            |
+   | `Question-capability map` | `data/question-capability-map.csv` |
+
+   On the `Agencies` tab, consider a dropdown (Data → Data validation) on the `Kind` column
+   offering the three allowed values.
+
+2. Publish each tab: **File → Share → Publish to web**, choose the tab (not "Entire document"),
+   choose **Comma-separated values (.csv)**, and publish. Under "Published content and settings"
+   leave **Automatically republish when changes are made** ticked. Copy each tab's URL.
+
+   Publishing makes those four tabs readable by anyone with the URL, and the URLs ship in the
+   site's JavaScript. Publish only these tabs; a working-notes tab left unpublished stays private.
+   Who can _edit_ is controlled separately, by the sheet's normal sharing settings.
+
+3. Set the four URLs as repository **variables** (Settings → Secrets and variables → Actions →
+   Variables) — not secrets, since they end up in the public bundle:
+
+   | Repository variable            | Build-time env var                  |
+   | ------------------------------ | ----------------------------------- |
+   | `SHEET_AGENCIES_CSV_URL`       | `VITE_SHEET_AGENCIES_CSV_URL`       |
+   | `SHEET_QUESTIONS_CSV_URL`      | `VITE_SHEET_QUESTIONS_CSV_URL`      |
+   | `SHEET_CAPABILITIES_CSV_URL`   | `VITE_SHEET_CAPABILITIES_CSV_URL`   |
+   | `SHEET_CAPABILITY_MAP_CSV_URL` | `VITE_SHEET_CAPABILITY_MAP_CSV_URL` |
+
+   Then re-run the deploy workflow. Set all four or none: with only some, the page shows the
+   snapshot and reports which are missing, rather than mixing live tabs with a roster from the
+   snapshot.
+
+   For local development, put the same `VITE_` names in `.env.local`, which `npm run pull-sheet`
+   also reads.
+
+### Keeping the snapshot current
+
+The snapshot is what every reader sees first, so if it falls far behind the sheet, readers who
+open a card quickly are offered the update instead of getting it automatically. Run
+`npm run pull-sheet` (see "Updating the data") whenever the sheet has settled after a round of
+edits. `src/data/dataset.test.ts` fails if the committed JSON does not match the CSVs in `/data`,
+so a pulled-but-not-rebuilt snapshot cannot ship.
 
 ## Comments
 
@@ -201,10 +299,14 @@ npm test
 
 Covers the part of the system most likely to silently produce wrong output:
 
-- **Normalization** — agency alias resolution, comma vs. semicolon splitting in the
+- **Normalization** — roster parsing and agency alias resolution, comma vs. semicolon splitting in the
   requirement/proof columns, slug generation, upstream/downstream link resolution (including the
   case where a reference legitimately fails to resolve and must be flagged rather than dropped),
   capability value parsing, and question/capability link resolution against a changed question set.
+- **Live sheet** (`src/sheetSource.test.ts`, `src/data/dataset.test.ts`) — that the four tabs are
+  validated as one dataset against the sheet's own roster, that each failure (unpublished tab, HTTP
+  error, timeout, invalid data) names the tab and rejects the whole sheet, and that the committed
+  JSON matches the committed CSVs.
 - **Analysis** (`src/capabilities.test.ts`) — the variance verdicts, and specifically that blank
   answers can never turn a uniform capability into a varying one or vice versa.
 - **Comments** (`src/comments/`) — `resolve.test.ts` covers target grouping and orphan detection,
@@ -212,7 +314,8 @@ Covers the part of the system most likely to silently produce wrong output:
   reattach them to a neighbour. `client.test.ts` covers the wire contract, notably that the POST
   stays a CORS _simple request_ (see "Comments" below for why that is load-bearing).
 - **Render** (`src/app.render.test.ts`) — mounts the whole app against the committed data in
-  `happy-dom` and drives both tabs, the filters, and the comment thread. Because the UI is
+  `happy-dom` and drives both tabs, the filters, the comment thread, and the live-sheet swap
+  (applied when idle, offered when a card is open, snapshot kept on failure). Because the UI is
   hand-rolled DOM, a throw inside `render()` produces a blank page that every other test would
   still pass. It also asserts that a comment body containing markup renders as literal text —
   comment bodies are the only _stored_ user-generated content here, so that is the difference
@@ -224,12 +327,16 @@ Covers the part of the system most likely to silently produce wrong output:
   (`src/dom.ts`) instead of hand-built HTML strings. The filterable-list-with-detail-panels shape
   of this app didn't warrant introducing Preact, state management, or routing.
 - **Shared normalization layer.** All CSV parsing and cleanup lives under `src/data/`, deliberately
-  free of Node imports so it runs in two places: `scripts/build-data.ts` (a thin CLI wrapper that
-  generates the committed JSON) and the in-browser upload preview in `src/main.ts`. This is why
+  free of Node imports so it runs in three places: `scripts/build-data.ts` (a thin CLI wrapper that
+  generates the committed JSON), the live sheet loader (`src/sheetSource.ts`), and the in-browser
+  upload preview in `src/main.ts`. A whole dataset — all four CSVs — goes through one function,
+  `normalizeDataset` in `src/data/dataset.ts`, so the sheet and the build cannot disagree about
+  what is valid. This is why
   `papaparse` is a runtime dependency shipped in the client bundle rather than a dev-only tool.
   `normalize.ts` (questions) and `normalizeCapabilities.ts` (capabilities) are siblings with no
-  dependency between them; what they share — the agency roster and string canonicalization — lives
-  in `agencies.ts` and `text.ts`.
+  dependency between them; what they share — the agency roster parser and resolver, and string
+  canonicalization — lives in `agencies.ts` and `text.ts`. The roster itself is data
+  (`data/agencies.csv`), passed into both normalizers rather than imported.
 - **Data contract.** `src/data/types.ts` is the single interface between normalization and the
   rendering code. UI components never see a raw CSV row.
 - **Derived analysis is kept out of the data contract**, as pure functions in the frontend, since
@@ -246,8 +353,9 @@ Covers the part of the system most likely to silently produce wrong output:
     answer as a "no". The flag appears in the question's capability panel and as a list filter,
     not as a header badge — it is a claim that needs its one-sentence justification beside it.
 - **Committed JSON.** `src/data/questions.json` and `src/data/capabilities.json` are committed, not
-  generated fresh in CI from a build secret, since the CSVs are plaintext committed sources of
-  record — aggregate policy metadata, not rider PII.
+  generated fresh in CI from a build secret, since the CSVs are plaintext committed snapshots —
+  aggregate policy metadata, not rider PII. The live sheet, where configured, is published and
+  public in the same sense.
 
 ## Open items carried over from CLAUDE.md
 
@@ -269,4 +377,6 @@ repo admin in the GitHub UI — not something this workflow file can do on its o
 
 The workflow passes `VITE_COMMENTS_ENDPOINT` from the `COMMENTS_ENDPOINT` repository **variable**
 (Settings → Secrets and variables → Actions → Variables). If it is unset the build still succeeds
-and deploys — commenting is simply absent from the deployed site.
+and deploys — commenting is simply absent from the deployed site. The four `SHEET_*_CSV_URL`
+variables work the same way (see "Live data from a Google Sheet"): unset, the site shows the
+snapshot only. Changing the sheet does not need a deploy; changing which sheet does.

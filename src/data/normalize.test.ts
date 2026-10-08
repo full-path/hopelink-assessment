@@ -1,9 +1,16 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { normalize, parseAgencyList, parseBurdenOfProof, parseCsv } from "./normalize";
-import { resolveAgencyId } from "./agencies";
+import { createAgencyResolver, parseAgencyRoster } from "./agencies";
 import { slugify } from "./text";
 
-describe("resolveAgencyId", () => {
+/** The committed roster, so these tests exercise the real alias table rather than a stand-in. */
+const ROSTER = parseAgencyRoster(
+  readFileSync(new URL("../../data/agencies.csv", import.meta.url), "utf-8"),
+);
+const resolveAgencyId = createAgencyResolver(ROSTER);
+
+describe("resolveAgencyId (committed roster)", () => {
   it("resolves an exact canonical name", () => {
     expect(resolveAgencyId("Hyde Shuttle")).toBe("hyde-shuttle");
   });
@@ -38,30 +45,28 @@ describe("resolveAgencyId", () => {
 
 describe("parseAgencyList", () => {
   it("returns an empty array for an empty cell", () => {
-    expect(parseAgencyList("")).toEqual([]);
-    expect(parseAgencyList("   ")).toEqual([]);
+    expect(parseAgencyList("", resolveAgencyId)).toEqual([]);
+    expect(parseAgencyList("   ", resolveAgencyId)).toEqual([]);
   });
 
   it("splits a comma-delimited list and resolves each agency", () => {
-    expect(parseAgencyList("Hyde Shuttle, ORCA LIFT, Beyond the Borders")).toEqual([
-      "hyde-shuttle",
-      "orca-lift",
-      "beyond-the-borders",
-    ]);
+    expect(parseAgencyList("Hyde Shuttle, ORCA LIFT, Beyond the Borders", resolveAgencyId)).toEqual(
+      ["hyde-shuttle", "orca-lift", "beyond-the-borders"],
+    );
   });
 
   it("resolves a single-agency cell", () => {
-    expect(parseAgencyList("Homage TAP")).toEqual(["homage-tap"]);
+    expect(parseAgencyList("Homage TAP", resolveAgencyId)).toEqual(["homage-tap"]);
   });
 });
 
 describe("parseBurdenOfProof", () => {
   it("returns an empty array for an empty cell", () => {
-    expect(parseBurdenOfProof("")).toEqual([]);
+    expect(parseBurdenOfProof("", resolveAgencyId)).toEqual([]);
   });
 
   it("parses a single agency with embedded proof detail", () => {
-    expect(parseBurdenOfProof("ORCA (Photo ID)")).toEqual([
+    expect(parseBurdenOfProof("ORCA (Photo ID)", resolveAgencyId)).toEqual([
       { agencyId: "orca", level: "proof_required", proofDetail: "Photo ID" },
     ]);
   });
@@ -70,6 +75,7 @@ describe("parseBurdenOfProof", () => {
     expect(
       parseBurdenOfProof(
         "ORCA (ProviderOne number OR EBT number OR DSHS Client ID number); Access Paratransit (signed note from doctor)",
+        resolveAgencyId,
       ),
     ).toEqual([
       {
@@ -112,7 +118,7 @@ describe("normalize", () => {
       { ...baseRow, Question: "Race", "Downstream Q's": "Ethnicity" },
       { ...baseRow, Question: "Ethnicity", "Upstream Q's": "Race" },
     ];
-    const data = normalize(rows);
+    const data = normalize(rows, ROSTER);
     const race = data.questions.find((q) => q.id === "race");
     const ethnicity = data.questions.find((q) => q.id === "ethnicity");
     expect(race?.downstreamRefs).toEqual(["ethnicity"]);
@@ -128,7 +134,7 @@ describe("normalize", () => {
         "Downstream Q's": "Mailing address same as home address?",
       },
     ];
-    const data = normalize(rows);
+    const data = normalize(rows, ROSTER);
     const question = data.questions[0];
     expect(question?.downstreamRefs).toEqual([]);
     expect(question?.unresolvedLinks).toEqual(["Mailing address same as home address?"]);
@@ -140,7 +146,7 @@ describe("normalize", () => {
       { ...baseRow, Question: "Email" },
       { ...baseRow, Question: "Preferred method of contact?", "Upstream Q's": "Phone; Email" },
     ];
-    const data = normalize(rows);
+    const data = normalize(rows, ROSTER);
     const contact = data.questions.find((q) => q.id === "preferred-method-of-contact");
     expect(contact?.upstreamRefs).toEqual(["phone", "email"]);
     expect(contact?.unresolvedLinks).toBeUndefined();
@@ -155,7 +161,7 @@ describe("normalize", () => {
         "Upstream Q's": "Accessibility needs; Preferred Language",
       },
     ];
-    const data = normalize(rows);
+    const data = normalize(rows, ROSTER);
     const interpreter = data.questions.find((q) => q.id === "do-you-need-an-interpreter");
     expect(interpreter?.upstreamRefs).toEqual(["accessibility-needs"]);
     expect(interpreter?.unresolvedLinks).toEqual(["Preferred Language"]);
@@ -170,7 +176,7 @@ describe("normalize", () => {
         "Downstream Q's": "Special directions (gate code, etc)",
       },
     ];
-    const data = normalize(rows);
+    const data = normalize(rows, ROSTER);
     const needs = data.questions.find((q) => q.id === "accessibility-needs");
     expect(needs?.downstreamRefs).toEqual(["special-directions-gate-code-etc"]);
   });
@@ -185,7 +191,7 @@ describe("normalize", () => {
         "Data Quality Notes": "ORCA is listed under both Required and Optional.",
       },
     ];
-    const data = normalize(rows);
+    const data = normalize(rows, ROSTER);
     expect(data.questions[0]?.dataQualityNote).toBe(
       "ORCA is listed under both Required and Optional.",
     );
@@ -193,7 +199,7 @@ describe("normalize", () => {
 
   it("omits dataQualityNote entirely when the cell is blank", () => {
     const rows = [{ ...baseRow, Question: "Gender" }];
-    const data = normalize(rows);
+    const data = normalize(rows, ROSTER);
     expect(data.questions[0]?.dataQualityNote).toBeUndefined();
   });
 
@@ -202,7 +208,7 @@ describe("normalize", () => {
       { ...baseRow, Question: "Phone" },
       { ...baseRow, Question: "phone" },
     ];
-    expect(() => normalize(rows)).toThrow(/Duplicate question id/);
+    expect(() => normalize(rows, ROSTER)).toThrow(/Duplicate question id/);
   });
 });
 

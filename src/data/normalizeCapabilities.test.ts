@@ -1,10 +1,19 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { parseAgencyRoster } from "./agencies";
 import {
-  normalizeCapabilitiesCsv,
+  normalizeCapabilitiesCsv as normalizeWithRoster,
   parseCapabilityValue,
   resolveQuestionCapabilityLinks,
 } from "./normalizeCapabilities";
 import type { IntakeQuestion } from "./types";
+
+/** The committed roster, so agency spellings are checked against the real alias table. */
+const ROSTER = parseAgencyRoster(
+  readFileSync(new URL("../../data/agencies.csv", import.meta.url), "utf-8"),
+);
+const normalizeCapabilitiesCsv = (matrix: string, map: string) =>
+  normalizeWithRoster(matrix, map, ROSTER);
 
 const MATRIX_HEADER = "Agency Name,Wheelchair Accessible,Interpretation Support";
 const MAP_HEADER = "Question,Capability,Note";
@@ -89,6 +98,37 @@ describe("normalizeCapabilitiesCsv", () => {
     expect(() =>
       normalizeCapabilitiesCsv([MATRIX_HEADER, "Some New Agency,Yes,"].join("\n"), MAP_HEADER),
     ).toThrow(/Unrecognized agency name/);
+  });
+
+  it("ignores a trailing column with neither a header nor any answers", () => {
+    // A spreadsheet tab exported as CSV can carry empty columns past the data. Header-mode
+    // parsing would name them "_1", "_2" and report them as capabilities.
+    const data = normalizeCapabilitiesCsv(
+      [`${MATRIX_HEADER},,`, "Hyde Shuttle,Yes,No,,"].join("\n"),
+      MAP_HEADER,
+    );
+    expect(data.capabilities.map((c) => c.id)).toEqual([
+      "wheelchair-accessible",
+      "interpretation-support",
+    ]);
+    expect(data.profiles[0]?.capabilities).toHaveLength(2);
+  });
+
+  it("rejects a column that has answers but no capability name", () => {
+    expect(() =>
+      normalizeCapabilitiesCsv(
+        [`${MATRIX_HEADER},`, "Hyde Shuttle,Yes,No,Yes"].join("\n"),
+        MAP_HEADER,
+      ),
+    ).toThrow(/column 4 has answers but no capability name/);
+  });
+
+  it("reads a header that starts with a byte-order mark", () => {
+    const data = normalizeCapabilitiesCsv(
+      ["\uFEFF" + MATRIX_HEADER, "Hyde Shuttle,Yes,"].join("\n"),
+      MAP_HEADER,
+    );
+    expect(data.profiles[0]?.agencyId).toBe("hyde-shuttle");
   });
 
   it("rejects a duplicate agency row", () => {

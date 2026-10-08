@@ -1,15 +1,20 @@
 import Papa from "papaparse";
-import type { AgencyRequirement, IntakeQuestion, NormalizedData } from "./types";
-import { CANONICAL_AGENCIES, resolveAgencyId } from "./agencies";
+import type { Agency, AgencyRequirement, IntakeQuestion, NormalizedData } from "./types";
+import { createAgencyResolver, type AgencyResolver } from "./agencies";
 import { normalizeWhitespace, slugify } from "./text";
 
 /**
- * `data/eligibility-questions.csv` → NormalizedData, shared by two callers:
+ * `data/eligibility-questions.csv` → NormalizedData, shared by three callers:
  *
  *  - `scripts/build-data.ts`, which generates the committed `questions.json` at build time
- *    from the source-of-record CSV in `/data`; and
+ *    from the snapshot CSVs in `/data`;
+ *  - the live sheet loader (`src/sheetSource.ts`), which normalizes the published Google Sheet
+ *    in the browser on page load; and
  *  - the in-browser upload preview (`src/main.ts`), which lets a user point the running app
  *    at a replacement CSV for the current session without rebuilding.
+ *
+ * Agency names are resolved against a roster passed in by the caller rather than a fixed table,
+ * because the roster is itself data (`agencies.ts`) and may come from the live sheet.
  *
  * Because this module runs in the browser, it must stay free of Node imports.
  */
@@ -26,7 +31,7 @@ export interface SourceRow {
 }
 
 /** Splits a simple comma-delimited agency-list cell (Required / Optional / Self-Attestation) into agency ids. */
-export function parseAgencyList(cell: string): string[] {
+export function parseAgencyList(cell: string, resolveAgencyId: AgencyResolver): string[] {
   if (!cell.trim()) {
     return [];
   }
@@ -44,7 +49,10 @@ const PROOF_SEGMENT_PATTERN = /^(.+?)\s*\(([\s\S]*)\)$/;
  * semicolon-delimited (the source CSV uses ";" here specifically to avoid ambiguity with
  * proof-detail text that itself contains commas — see CLAUDE.md Section 3).
  */
-export function parseBurdenOfProof(cell: string): AgencyRequirement[] {
+export function parseBurdenOfProof(
+  cell: string,
+  resolveAgencyId: AgencyResolver,
+): AgencyRequirement[] {
   if (!cell.trim()) {
     return [];
   }
@@ -66,7 +74,8 @@ export function parseBurdenOfProof(cell: string): AgencyRequirement[] {
     });
 }
 
-export function normalize(rows: SourceRow[]): NormalizedData {
+export function normalize(rows: SourceRow[], agencies: Agency[]): NormalizedData {
+  const resolveAgencyId = createAgencyResolver(agencies);
   const textToId = new Map<string, string>();
   const usedIds = new Set<string>();
   for (const row of rows) {
@@ -112,19 +121,25 @@ export function normalize(rows: SourceRow[]): NormalizedData {
     }
 
     const requirements: AgencyRequirement[] = [
-      ...parseAgencyList(row["Providers Required"]).map((agencyId): AgencyRequirement => ({
-        agencyId,
-        level: "required",
-      })),
-      ...parseAgencyList(row["Providers Optional"]).map((agencyId): AgencyRequirement => ({
-        agencyId,
-        level: "optional",
-      })),
-      ...parseAgencyList(row["Providers Self Attestation"]).map((agencyId): AgencyRequirement => ({
-        agencyId,
-        level: "self_attestation",
-      })),
-      ...parseBurdenOfProof(row["Providers Burden of Proof"]),
+      ...parseAgencyList(row["Providers Required"], resolveAgencyId).map(
+        (agencyId): AgencyRequirement => ({
+          agencyId,
+          level: "required",
+        }),
+      ),
+      ...parseAgencyList(row["Providers Optional"], resolveAgencyId).map(
+        (agencyId): AgencyRequirement => ({
+          agencyId,
+          level: "optional",
+        }),
+      ),
+      ...parseAgencyList(row["Providers Self Attestation"], resolveAgencyId).map(
+        (agencyId): AgencyRequirement => ({
+          agencyId,
+          level: "self_attestation",
+        }),
+      ),
+      ...parseBurdenOfProof(row["Providers Burden of Proof"], resolveAgencyId),
     ];
 
     const upstream = resolveLink(row["Upstream Q's"]);
@@ -145,7 +160,7 @@ export function normalize(rows: SourceRow[]): NormalizedData {
     return question;
   });
 
-  return { agencies: CANONICAL_AGENCIES, questions };
+  return { agencies, questions };
 }
 
 const REQUIRED_COLUMNS: (keyof SourceRow)[] = [
@@ -182,7 +197,7 @@ export function parseCsv(csvText: string): SourceRow[] {
   return result.data.filter((row) => normalizeWhitespace(row.Question).length > 0);
 }
 
-/** One-call convenience for callers that start from raw CSV text (the upload path). */
-export function normalizeCsv(csvText: string): NormalizedData {
-  return normalize(parseCsv(csvText));
+/** One-call convenience for callers that start from raw CSV text. */
+export function normalizeCsv(csvText: string, agencies: Agency[]): NormalizedData {
+  return normalize(parseCsv(csvText), agencies);
 }

@@ -13,6 +13,9 @@ A static, client-side web application, deployed to GitHub Pages, that:
 4. Cross-references those questions against what each provider can physically accommodate, so a
    reader can see whether a question is doing any routing work at all — a capability every
    provider offers equally cannot distinguish one provider from another.
+5. Optionally reads all of the above from a published Google Sheet that program staff edit, so an
+   edit is visible on the next page load without a developer or a rebuild (Section 5,
+   requirement 9). The CSVs in `/data` are then a committed snapshot of that sheet.
 
 Primary audience for the running application: Hopelink leadership, participating pilot agencies,
 and the Advisory Committee — reviewing how much intake overlap exists and where standardization
@@ -25,10 +28,14 @@ not a preference.
 
 ## 2. Data Sources
 
-Three CSVs in `/data`, all hand-editable sources of record:
+Four CSVs in `/data`, all hand-editable. Where a live Google Sheet is configured (Section 5,
+requirement 9) it is the working source of record, with one tab per CSV, and these files are its
+committed snapshot — refreshed by `npm run pull-sheet`, and what the page paints first and falls
+back to. With no sheet configured they are the source of record outright, as before.
 
 | File | Contents |
 |---|---|
+| `agencies.csv` | The agency roster: display name, `Kind`, semicolon-separated `Aliases`, and an editors-only `Note`. Every agency name in every other file must resolve against it. Data rather than code so staff can add an agency or tolerate a new spelling without a developer. |
 | `eligibility-questions.csv` | The intake questions. Cleaned from the agency-survey export (`by-question.csv`), which is kept alongside it so the cleanup is auditable. That export is near-verbatim rather than frozen: a question may be added to it deliberately (see Section 11, item 13), so it is a maintained question bank, not an immutable receipt. Edit it only to add a question, never to restate what an agency answered. |
 | `capabilities.csv` | One row per ride provider, one column per capability (wheelchair, lift, service animals, …), free-text answers. |
 | `question-capability-map.csv` | An editorial claim that a given question exists in order to determine a given capability. Not derivable from either sheet above — a human asserts it, and the `Note` column records why. Kept as a CSV rather than in code so a program person can review and edit it. |
@@ -45,10 +52,11 @@ Columns of `eligibility-questions.csv` as shipped:
 | `Upstream Q's` | Free-text reference to a question that must be answered before this one is shown |
 | `Downstream Q's` | Free-text reference to a question this one gates |
 
-This file is the input to a normalization step (see Section 4) that runs in two places: at build
-time to produce the committed default dataset, and in the browser when a user uploads a
-replacement CSV for a session-only preview (Section 5, requirement 6). Both paths go through the
-same shared module — the UI never parses raw CSV cells itself.
+This file is the input to a normalization step (see Section 4) that runs in three places: at build
+time to produce the committed snapshot, in the browser when the live sheet loads (Section 5,
+requirement 9), and in the browser when a user uploads a replacement CSV for a session-only
+preview (Section 5, requirement 6). All paths go through the same shared modules — the UI never
+parses raw CSV cells itself.
 
 ## 3. Data Anomalies Confirmed in Source (Must Be Resolved Before Ingestion)
 
@@ -57,9 +65,9 @@ application parses the raw cells directly at runtime:
 
 - **Agency name variants.** `Beyond the borders` vs `Beyond the Borders`; `Access paratransit` vs
   `Access Paratransit`; `ORCA` appears bare and as `ORCA (Senior)`, `ORCA (disabled)`,
-  `ORCA LIFT`. A canonical agency list and alias-resolution table is required. Whether the ORCA
-  variants are distinct programs or inconsistent labeling of one program is unresolved in the
-  source data — see Section 11, item 1.
+  `ORCA LIFT`. A canonical agency list and alias-resolution table is required; it is
+  `data/agencies.csv`. Whether the ORCA variants are distinct programs or inconsistent labeling
+  of one program is unresolved in the source data — see Section 11, item 1.
 - **Non-resolvable linkage.** `Upstream Q's` / `Downstream Q's` reference other questions by
   paraphrase, not exact text match or ID. They cannot be turned into a navigable graph without
   manual reconciliation against the `Question` column.
@@ -99,9 +107,10 @@ application parses the raw cells directly at runtime:
 
 None of these should be handled with defensive parsing logic scattered through the application.
 They are resolved once, in the shared normalization layer under `src/data/` — `normalize.ts` for
-the questions sheet, `normalizeCapabilities.ts` for the capability sheets, with the agency roster
-(`agencies.ts`) and string helpers (`text.ts`) shared between them. Every path into the app, build
-script and in-browser upload alike, goes through those modules. UI code should never see a raw
+the questions sheet, `normalizeCapabilities.ts` for the capability sheets, with the roster parser
+and resolver (`agencies.ts`) and string helpers (`text.ts`) shared between them, and
+`dataset.ts` normalizing all four CSVs as one unit. Every path into the app — build script, live
+sheet and in-browser upload alike — goes through those modules. UI code should never see a raw
 CSV row.
 
 ## 4. Data Model (Normalized Output of Preprocessing)
@@ -290,6 +299,29 @@ question/capability links, and comments whose target is not in the displayed dat
    whole application renders normally with commenting simply absent, and a dead or misconfigured
    endpoint degrades to an error inside the comment areas alone. The analysis is the product;
    comments are an enhancement and may never delay, block, or blank it.
+9. **Live data from a published Google Sheet**, so staff can update the data and have it visible
+   without a rebuild. Optional at build time: the four `VITE_SHEET_*_CSV_URL` variables (one per
+   tab, each that tab's "Publish to web" CSV URL) are all set or all unset. Constraints, each of
+   which is easy to break:
+
+   - **The page never waits on the sheet.** It paints from the committed snapshot and fetches the
+     sheet after first paint, as comments do. Page load is unchanged; the sheet arrives
+     ~0.5–2 s later.
+   - **The sheet is validated as one dataset, by the build's own code** (`normalizeDataset`).
+     Anything the build would reject — unknown agency, missing column, duplicate question, a
+     capability column with answers but no name — rejects the whole sheet; the page keeps the
+     snapshot and states why. Never display part of a sheet, and never mix live tabs with snapshot
+     ones: every tab resolves agency names against the live roster. A partial configuration is
+     reported, not half-honoured.
+   - **A data swap must not rebuild the page under a reader.** `render()` rebuilds everything, so
+     a swap would collapse open cards and discard a half-written comment. An identical sheet
+     only updates the status line in place; a different one is applied immediately only if the
+     reader is idle (no open `<details>`, no focus inside `#app`), and otherwise offered behind a
+     button. Filters survive a swap, minus agencies the new roster lacks.
+   - **Requests stay CORS-simple** — a bare GET, no custom headers — for the same reason as the
+     comment client.
+   - **Freshness is bounded by Google, not by the app.** Published output is cached for about five
+     minutes on Google's side.
 
 ## 6. Non-Functional Requirements / Code Quality Standards
 
@@ -306,9 +338,11 @@ question/capability links, and comments whose target is not in the displayed dat
 - Analysis that is a *view over* the data rather than part of it — the standardization summary
   (`src/summary.ts`) and the capability variance analysis (`src/capabilities.ts`) — stays out of
   the data contract, as pure functions with no DOM.
-- Unit tests for the normalization modules specifically: agency alias resolution, proof-field
-  splitting, unresolved-link detection, capability value parsing, question/capability link
-  resolution. This is the part of the system most likely to silently produce wrong output, and the
+- Unit tests for the normalization modules specifically: roster parsing and agency alias
+  resolution, proof-field splitting, unresolved-link detection, capability value parsing,
+  question/capability link resolution. `src/data/dataset.test.ts` asserts that the committed JSON
+  is exactly what the committed CSVs normalize to, so a stale snapshot cannot ship, and
+  `src/sheetSource.test.ts` covers the live loader's failure modes. This is the part of the system most likely to silently produce wrong output, and the
   part least likely to be caught by visual inspection. `src/app.render.test.ts` additionally mounts
   the whole app against the committed data, because a throw inside `render()` yields a blank page
   that every unit test would still pass.
@@ -342,7 +376,9 @@ question/capability links, and comments whose target is not in the displayed dat
   client bundle — it is a runtime dependency, not a dev-only one.
 - No backend **for the intake and capability data**. Output is static HTML/CSS/JS plus two
   generated JSON files (`questions.json`, `capabilities.json`). Uploaded CSVs are processed
-  client-side only and never leave the browser.
+  client-side only and never leave the browser. Where a live sheet is configured, the browser
+  reads its published CSV tabs directly from Google (Section 5, requirement 9) — read-only, no
+  credentials, no server of ours in between. It is a separate spreadsheet from the comment store.
 - **One exception, added for comments (Section 5, requirement 8):** a Google Apps Script web app
   bound to a Google Sheet, checked into `/apps-script/`. It is the only piece of the system that
   persists anything and the only piece that does not deploy from CI. It stores comments and
@@ -355,13 +391,15 @@ question/capability links, and comments whose target is not in the displayed dat
 
 ## 8. Build & Deployment Pipeline
 
-1. The three CSVs (Section 2) checked into `/data/` as sources of record.
+1. The four CSVs (Section 2) checked into `/data/` — the sources of record, or the committed
+   snapshot of the live sheet where one is configured (`npm run pull-sheet` refreshes them).
 2. `scripts/build-data.ts` runs at build time, outputs `/src/data/questions.json` and
    `/src/data/capabilities.json`. It warns (without failing) when a question/capability map entry
    matches no question — the map is allowed to lag a CSV edit by one commit.
 3. Vite builds static assets.
 4. GitHub Actions workflow builds on push to `main` and deploys to GitHub Pages.
-5. Updating the intake comparison going forward means editing the CSVs and re-running the build.
+5. Updating the intake comparison going forward means editing the live sheet, where one is
+   configured — no build involved — or otherwise editing the CSVs and re-running the build.
    The in-app CSV upload (Section 5, requirement 6) is a session-only preview for trying a
    candidate revision — it does not persist anything; permanent changes still go through this
    pipeline. Building a live-editing interface remains out of scope (Section 10).
@@ -370,12 +408,17 @@ question/capability links, and comments whose target is not in the displayed dat
 
 ```
 /data/by-question.csv                 # agency-survey export + deliberate additions; the question bank
+/data/agencies.csv                    # source of record: the agency roster, kinds and aliases
 /data/eligibility-questions.csv       # source of record, hand-edited (cleaned from the above)
 /data/capabilities.csv                # source of record: provider capability matrix
 /data/question-capability-map.csv     # source of record: editorial question -> capability claims
 /scripts/build-data.ts                # thin CLI: reads the CSVs, writes the JSON via the shared modules
+/scripts/pull-sheet.ts                # copies the live sheet into /data, validating first
 /src/data/text.ts                     # string canonicalization shared by both normalizers
-/src/data/agencies.ts                 # canonical agency roster + alias resolution
+/src/data/agencies.ts                 # agency roster parser + alias resolution
+/src/data/agencies.test.ts
+/src/data/dataset.ts                  # all four CSVs -> one dataset; the build and the live sheet both call it
+/src/data/dataset.test.ts
 /src/data/normalize.ts                # questions:     CSV text -> NormalizedData
 /src/data/normalizeCapabilities.ts    # capabilities:  CSV text -> CapabilityData
 /src/data/normalize.test.ts
@@ -387,8 +430,10 @@ question/capability links, and comments whose target is not in the displayed dat
 /src/capabilities.ts                  # capability variance analysis (view over the data)
 /src/capabilities.test.ts
 /src/app.render.test.ts               # whole-app render smoke test (happy-dom)
+/src/sheetSource.ts                   # live Google Sheet loader (network I/O; validates via dataset.ts)
+/src/sheetSource.test.ts
 /src/comments/types.ts                # the comment data contract
-/src/comments/client.ts               # transport to the Apps Script store (the only network I/O)
+/src/comments/client.ts               # transport to the Apps Script store (the only network write)
 /src/comments/resolve.ts              # comments -> targets in the active dataset; orphan detection
 /src/comments/resolve.test.ts
 /src/comments/client.test.ts
@@ -416,7 +461,8 @@ CLAUDE.md
 - Persisting any rider or PII data — this tool operates on aggregate policy metadata only, never
   individual rider records. It has no relationship to the Vault, Dashboard, or Workflow Tracker
   components of the Phase 2 architecture and should not be conflated with them.
-- Editing the unified intake data through a UI.
+- Editing the unified intake data through a UI **in this app**. Staff edit the Google Sheet, in
+  Google's own interface; the app only ever reads it.
 
 ## 11. Open Decisions Requiring Confirmation
 
@@ -461,7 +507,8 @@ unless corrected:
    `ORCA LIFT` and `SAP` are treated as fare/pass programs and `Metro Transit Instruction` as
    travel training, meaning vehicle capabilities are reported as "not applicable" rather than as a
    survey gap. The evidence is that `capabilities.csv` surveyed exactly the ride providers and none
-   of these. If any of them does operate vehicles, correct `kind` in `src/data/agencies.ts`.
+   of these. If any of them does operate vehicles, correct `Kind` in the roster
+   (`data/agencies.csv`, or the Agencies tab of the live sheet).
 10. **The question → capability map is editorial.** Nothing in either CSV asserts that
     "Do you require portable Oxygen" exists to determine the "Portable Oxygen" capability; a human
     claimed it in `data/question-capability-map.csv`, with the reasoning in each row's `Note`.
@@ -491,3 +538,19 @@ unless corrected:
     recorded here so a later reader does not mistake the blank row for a parsing failure, and so
     the one open question stays visible: ask the agencies how they handle it, and the columns can
     be filled in.
+14. **The live sheet's terms.** Assumed rather than confirmed:
+    - *Published means public.* "Publish to web" makes each data tab readable by anyone with its
+      URL, and the URLs ship in the bundle. This sharpens item 3: the data was already public on
+      the deployed site, but staff now edit it in a public document, and should know that.
+    - *"Publish to web" over other endpoints.* Chosen because it returns exactly what a download
+      would and can expose only the four data tabs. Its cost is the ~5-minute cache; the `gviz`
+      endpoint is fresher but guesses column types and can silently blank cells, and `export`
+      is not reliably readable cross-origin from a browser.
+    - *Staff own the roster, including `Kind`.* Item 9's classification is now editable by
+      whoever can edit the sheet, and a wrong `Kind` changes the capabilities analysis without
+      any developer review.
+    - *The snapshot is refreshed by hand* (`npm run pull-sheet`). Between refreshes, readers who
+      act quickly are offered newer data rather than shown it. Automating the refresh is possible
+      (a scheduled workflow) but not built.
+    - *Rewording a question in the sheet orphans its comments* (Section 4) immediately. That is
+      displayed correctly, but easier editing makes it more frequent.
