@@ -52,12 +52,10 @@ export function renderFilters(
   const selected = new Set(state.agencyIds);
 
   /** Re-derives the selection from the roster, so the stored array never depends on click order. */
-  const selectionWith = (agencyIds: string[], checked: boolean): string[] => {
+  const selectionWith = (agencyId: string, checked: boolean): string[] => {
     const next = new Set(selected);
-    for (const agencyId of agencyIds) {
-      if (checked) next.add(agencyId);
-      else next.delete(agencyId);
-    }
+    if (checked) next.add(agencyId);
+    else next.delete(agencyId);
     return agencies.filter((agency) => next.has(agency.id)).map((agency) => agency.id);
   };
 
@@ -70,42 +68,50 @@ export function renderFilters(
     .map((group) => ({ ...group, agencyIds: group.agencyIds.filter((id) => listed.has(id)) }))
     .filter((group) => group.agencyIds.length > 0);
 
-  /**
-   * A group is a shortcut over the same selection, not a second kind of filter: ticking it ticks
-   * every member, unticking it unticks every member, and its own state is read back from the
-   * members — checked when all are selected, indeterminate when some are. So a group and its
-   * members can never disagree, and there is nothing extra to keep in sync or reset.
-   */
-  const groupToggles = groups.map((group) => {
-    const inputId = `filter-group-${group.id}`;
-    const selectedCount = group.agencyIds.filter((id) => selected.has(id)).length;
-    const input = h("input", {
-      type: "checkbox",
-      id: inputId,
-      value: group.id,
-      checked: selectedCount === group.agencyIds.length,
-      onChange: (e) => {
-        onChange({
-          ...state,
-          agencyIds: selectionWith(group.agencyIds, (e.target as HTMLInputElement).checked),
-        });
-      },
-    });
-    // Only settable as a property; assistive technology reads it as "mixed".
-    input.indeterminate = selectedCount > 0 && selectedCount < group.agencyIds.length;
-    return h(
-      "div",
-      { className: "filters__checkbox" },
-      input,
-      h("label", { for: inputId }, `${group.name} (${String(group.agencyIds.length)})`),
-    );
-  });
-
-  /** The group whose members are exactly the selection, if any — named in the summary. */
+  /** The group whose members are exactly the selection, if any. */
   const matchingGroup = groups.find(
     (group) =>
       group.agencyIds.length === selected.size && group.agencyIds.every((id) => selected.has(id)),
   );
+
+  /**
+   * "Show": switch between every agency and a staff-defined group in one action.
+   *
+   * Choosing an entry *replaces* the selection — the agency checkboxes combine, which is right
+   * for hand-picking but wrong for switching views, where it would add one group to the last.
+   * The select holds no state of its own: its value is read back from the selection each render,
+   * so it cannot disagree with the checkboxes, and "Custom selection" appears only to report a
+   * hand-picked selection that matches no group. It is disabled because it is a status, not a
+   * destination.
+   */
+  const CUSTOM = "custom";
+  const ALL = "all";
+  const showValue = selected.size === 0 ? ALL : (matchingGroup?.id ?? CUSTOM);
+  let showSelect: HTMLSelectElement | undefined;
+  if (groups.length > 0) {
+    showSelect = h(
+      "select",
+      {
+        id: "filter-show",
+        onChange: (e) => {
+          const value = (e.target as HTMLSelectElement).value;
+          const group = groups.find((g) => g.id === value);
+          onChange({ ...state, agencyIds: group ? group.agencyIds : [] });
+        },
+      },
+      h("option", { value: ALL }, "All agencies"),
+      ...groups.map((group) =>
+        h("option", { value: group.id }, `${group.name} (${String(group.agencyIds.length)})`),
+      ),
+      showValue === CUSTOM
+        ? h("option", { value: CUSTOM, disabled: true }, "Custom selection")
+        : undefined,
+    );
+    // Set as a property rather than a `selected` attribute per option: one assignment, and it
+    // selects the disabled "Custom selection" entry reliably, where attribute-based selectedness
+    // is handled inconsistently outside real browsers (happy-dom gets it wrong).
+    showSelect.value = showValue;
+  }
 
   const agencyToggles = agencies.map((agency) => {
     const inputId = `filter-agency-${agency.id}`;
@@ -120,7 +126,7 @@ export function renderFilters(
         onChange: (e) => {
           onChange({
             ...state,
-            agencyIds: selectionWith([agency.id], (e.target as HTMLInputElement).checked),
+            agencyIds: selectionWith(agency.id, (e.target as HTMLInputElement).checked),
           });
         },
       }),
@@ -144,18 +150,6 @@ export function renderFilters(
           ? `Agency: ${matchingGroup.name} (${String(selected.size)} of ${String(agencies.length)})`
           : `Agency: ${String(selected.size)} of ${String(agencies.length)} selected`,
     ),
-    groupToggles.length > 0
-      ? h(
-          "div",
-          {
-            className: "filters__group-list",
-            role: "group",
-            "aria-labelledby": "filter-groups-label",
-          },
-          h("span", { className: "filters__sublabel", id: "filter-groups-label" }, "Groups"),
-          ...groupToggles,
-        )
-      : undefined,
     h(
       "div",
       { className: "filters__agency-list", role: "group", "aria-label": "Agencies" },
@@ -212,6 +206,14 @@ export function renderFilters(
   return h(
     "form",
     { className: "filters", "aria-label": "Filter questions" },
+    showSelect
+      ? h(
+          "div",
+          { className: "filters__field" },
+          h("label", { for: "filter-show" }, "Show"),
+          showSelect,
+        )
+      : undefined,
     agencyFilter,
     h(
       "div",

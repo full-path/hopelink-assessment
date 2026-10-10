@@ -125,10 +125,12 @@ hide together in the Intake questions view's agency filter.
 - **One row per membership**: `Group` (the name, spelled the same on every row), `Agency` (picked
   from the roster) and an optional editors-only `Note`. An agency can be in several groups; listing
   it twice in one group is an error, as are two spellings of one group name.
-- **In the filter**, each group is a checkbox above the agencies. Ticking it ticks all its members;
-  unticking unticks them all. Its own state is read from its members — checked when all are
-  selected, a dash (indeterminate) when only some are — so a group and its members never disagree.
-  When the selection is exactly one group, the filter's summary names it.
+- **In the page**, a **Show** dropdown beside the agency filter lists "All agencies" and every
+  group. Choosing one _replaces_ the agency selection, so switching from all agencies to a group,
+  or from one group to another, is a single action. (The agency checkboxes combine instead, which
+  suits hand-picking but not switching.) The dropdown holds no state of its own: it reads its
+  value back from the ticked agencies, shows "Custom selection" when they match no group, and
+  names a group even if its members were ticked by hand.
 - Groups are a viewing aid only: they do not change any analysis. A member with no intake
   questions has no checkbox and is not counted in the filter, and a group with no such members is
   not offered.

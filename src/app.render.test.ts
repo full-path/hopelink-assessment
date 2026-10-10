@@ -602,52 +602,73 @@ describe("app render", () => {
     box.dispatchEvent(new Event("change"));
   }
 
-  function toggleGroup(app: HTMLElement, groupId: string, checked: boolean): void {
-    const box = app.querySelector<HTMLInputElement>(`#filter-group-${groupId}`);
-    if (!box) throw new Error(`no group checkbox for ${groupId}`);
-    box.checked = checked;
-    box.dispatchEvent(new Event("change"));
+  function show(app: HTMLElement, value: string): void {
+    const select = app.querySelector<HTMLSelectElement>("#filter-show");
+    if (!select) throw new Error("no Show select");
+    select.value = value;
+    select.dispatchEvent(new Event("change"));
   }
+  const showValue = (app: HTMLElement) =>
+    app.querySelector<HTMLSelectElement>("#filter-show")?.value;
+  const selectedAgencies = (app: HTMLElement) =>
+    [...app.querySelectorAll<HTMLInputElement>(".filters__agency-list input:checked")].map(
+      (box) => box.value,
+    );
+  const ORCA_PROGRAMS = ["orca", "orca-senior", "orca-disabled", "orca-lift"];
 
-  it("shows and hides a staff-defined group of agencies as a unit", async () => {
+  it("switches from all agencies to a staff-defined group in one action, and back", async () => {
     const app = await mountApp();
     const total = app.querySelectorAll(".question-card").length;
+    expect(showValue(app)).toBe("all");
 
-    toggleGroup(app, "orca-programs", true);
+    show(app, "orca-programs");
+    expect(selectedAgencies(app)).toEqual(ORCA_PROGRAMS);
     expect(app.querySelector("#filter-agency summary")?.textContent).toBe(
       "Agency: ORCA programs (4 of 16)",
     );
-    for (const id of ["orca", "orca-senior", "orca-disabled", "orca-lift"]) {
-      expect(app.querySelector<HTMLInputElement>(`#filter-agency-${id}`)?.checked).toBe(true);
-    }
     expect(boxes(app, "phone")).toHaveLength(4);
     expect(app.querySelectorAll(".question-card").length).toBeLessThan(total);
 
-    toggleGroup(app, "orca-programs", false);
-    expect(app.querySelector("#filter-agency summary")?.textContent).toBe("Agency: all 16");
+    show(app, "all");
+    expect(selectedAgencies(app)).toEqual([]);
     expect(app.querySelectorAll(".question-card").length).toBe(total);
   });
 
-  it("reads a group's state back from its members: indeterminate when only some are selected", async () => {
+  it("replaces the selection when switching groups, rather than combining them", async () => {
     const app = await mountApp();
 
-    pickAgency(app, "orca-lift");
-    const group = app.querySelector<HTMLInputElement>("#filter-group-orca-programs");
-    expect(group?.checked).toBe(false);
-    expect(group?.indeterminate).toBe(true);
-
-    // Ticking it completes the set rather than toggling the one already chosen off.
-    toggleGroup(app, "orca-programs", true);
-    expect(app.querySelector("#filter-agency summary")?.textContent).toContain("ORCA programs");
+    show(app, "orca-programs");
+    show(app, "paratransit-providers");
+    expect(selectedAgencies(app)).toEqual(["access-paratransit"]);
+    expect(showValue(app)).toBe("paratransit-providers");
   });
 
-  it("counts only group members that have intake data, and lists only groups with any", async () => {
-    // Pierce Transit SHUTTLE is a paratransit provider but asks no intake questions, so it has
-    // no checkbox here; the group still offers its one listed member.
+  it("replaces a hand-picked selection too, and reports one that matches no group as custom", async () => {
     const app = await mountApp();
-    expect(app.querySelector('label[for="filter-group-paratransit-providers"]')?.textContent).toBe(
-      "Paratransit providers (1)",
-    );
+
+    pickAgency(app, "hyde-shuttle");
+    expect(showValue(app)).toBe("custom");
+    const custom = app.querySelector<HTMLOptionElement>('#filter-show option[value="custom"]');
+    expect(custom?.disabled).toBe(true); // a status, not something to choose
+
+    show(app, "orca-programs");
+    expect(selectedAgencies(app)).toEqual(ORCA_PROGRAMS);
+    expect(app.querySelector('#filter-show option[value="custom"]')).toBeNull();
+  });
+
+  it("recognises a group picked by hand, so the select never disagrees with the checkboxes", async () => {
+    const app = await mountApp();
+    for (const id of ORCA_PROGRAMS) pickAgency(app, id);
+    expect(showValue(app)).toBe("orca-programs");
+  });
+
+  it("counts only group members that have intake data", async () => {
+    // Pierce Transit SHUTTLE is a paratransit provider but asks no intake questions, so it has
+    // no checkbox and the group offers its one listed member.
+    const app = await mountApp();
+    expect(
+      app.querySelector('#filter-show option[value="paratransit-providers"]')?.textContent,
+    ).toBe("Paratransit providers (1)");
   });
 
   it("offers every agency as a checkbox rather than a single-choice dropdown", async () => {

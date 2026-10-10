@@ -290,12 +290,15 @@ question/capability links, and comments whose target is not in the displayed dat
    of explanation to be fair ("the capability varies and most providers don't ask") belongs where
    that sentence can sit next to it.
 
-   **Agency groups** (`agency-groups.csv`) appear in the agency filter as checkboxes that tick or
-   untick all their members at once. They are shortcuts over the same selection, not a second
-   kind of filter: there is no group state, a group's checkbox is derived from its members
-   (checked when all are selected, indeterminate when some are), and the selection stored is still
-   just agency ids in roster order — so the strip-ordering guarantee above is untouched. Only
-   members with intake data count; a group with none is not offered.
+   **Agency groups** (`agency-groups.csv`) are offered in a **Show** select beside the agency
+   filter: "All agencies", then each group. Choosing one *replaces* the selection — switching
+   views is the expected flow, and the checkboxes' union semantics would instead add one group to
+   the last. The select is a view over the same selection, not a second kind of filter: there is
+   no group state, its value is derived from the ticked agencies each render ("Custom selection",
+   disabled, when they match no group), and the selection stored is still just agency ids in
+   roster order — so the strip-ordering guarantee above is untouched. Only members with intake
+   data count; a group with none is not offered. Its value is set as a property, not via
+   `selected` attributes, which happy-dom resolves incorrectly.
 4. Visual indicator distinguishing questions with resolved upstream/downstream chains from those
    with unresolved free-text references.
 5. A summary view answering the core stakeholder question directly: for a given candidate
