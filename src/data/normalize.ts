@@ -28,8 +28,12 @@ const QUESTIONS_COLUMNS = ["ID", "Question"];
 const REQUIREMENTS_COLUMNS = ["Question ID", "Agency", "Asked", "Verification", "Proof detail"];
 const LINKS_COLUMNS = ["Question ID", "Leads to"];
 
-/** Is the question mandatory? Blank is allowed: see the Requirements rules below. */
-const ASKED = { Required: "required", Optional: "optional" } as const;
+/**
+ * Is the question mandatory? Always stated: "Unknown" is how a row says the agency listed a
+ * Verification without saying whether it asks the question as required or optional. A blank is
+ * rejected, so "not stated" is something an editor chose, never a cell they forgot.
+ */
+const ASKED = { Required: "required", Optional: "optional", Unknown: "unknown" } as const;
 /** How is the answer checked? */
 const VERIFICATION = {
   "Self-attestation": "self_attestation",
@@ -41,9 +45,9 @@ const VERIFICATION = {
  *
  * The tab records two separate facts per (question, agency) — whether the question is
  * mandatory, and how the answer is checked — which the contract represents as up to two entries
- * on the same ordinal scale. A row with only a Verification is accepted: it is a real gap in
- * what the agency reported (it checks an answer to a question it never said it asks), and
- * rejecting it would hide that rather than show it.
+ * on the same ordinal scale. `Asked: Unknown` produces no mandatory/optional entry, and marks the
+ * Verification entry `askedUnknown` so the gap is shown rather than read as "not asked": the
+ * agency checks an answer to a question it never said how it asks.
  */
 function requirementEntries(row: Row, agencyId: string, where: string): AgencyRequirement[] {
   const asked = dropdown(cell(row, "Asked"), ASKED, () => `${where}: Asked`);
@@ -54,20 +58,28 @@ function requirementEntries(row: Row, agencyId: string, where: string): AgencyRe
   );
   const proofDetail = cell(row, "Proof detail");
 
-  if (asked === null && verification === null) {
-    throw new Error(`${where} has neither Asked nor Verification; fill one in or delete the row.`);
+  if (asked === null) {
+    throw new Error(
+      `${where} has no Asked. Use Required or Optional, or Unknown if the agency has not said.`,
+    );
+  }
+  if (asked === "unknown" && verification === null) {
+    throw new Error(
+      `${where} has Asked "Unknown" and no Verification, so it records nothing; delete the row.`,
+    );
   }
   if (proofDetail && verification !== "proof_required") {
     throw new Error(`${where} has Proof detail but Verification is not "Proof required".`);
   }
 
   const entries: AgencyRequirement[] = [];
-  if (asked !== null) entries.push({ agencyId, level: asked });
+  if (asked !== "unknown") entries.push({ agencyId, level: asked });
   if (verification !== null) {
     entries.push({
       agencyId,
       level: verification,
       ...(proofDetail ? { proofDetail } : {}),
+      ...(asked === "unknown" ? { askedUnknown: true as const } : {}),
     });
   }
   return entries;

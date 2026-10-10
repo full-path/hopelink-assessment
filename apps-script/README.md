@@ -161,7 +161,7 @@ pasted over the dropdowns.
   hyphens, unique. Editing an existing ID shows a warning first, because comments on the site are
   attached to it.
 - **Red highlighting** of rows the site would reject: a second Requirements row for the same
-  question and agency, a row with neither Asked nor Verification, proof detail without "Proof
+  question and agency, a row with no Asked, an "Unknown" Asked with no Verification, proof detail without "Proof
   required", a question linked to itself, a capability answer from an agency not marked as having
   returned the survey.
 - **A Checks tab** counting each problem the site checks for. Every count should be 0.

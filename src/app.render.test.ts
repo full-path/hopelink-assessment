@@ -525,19 +525,20 @@ describe("app render", () => {
 
     expect(cls(0)).toContain("agency-box--self_attestation"); // Hyde Shuttle
     expect(cls(2)).toContain("agency-box--required"); // Beyond the Borders
-    expect(cls(5)).toContain("agency-box--proof_required"); // ORCA
+    expect(cls(8)).toContain("agency-box--proof_required"); // ORCA LIFT
     expect(cls(10)).toContain("agency-box--optional"); // Sound Generations VTS
     expect(cls(1)).toContain("agency-box--not-asked"); // Northshore Senior Center
+    expect(cls(5)).toContain("agency-box--not-asked"); // bare ORCA: the proof is ORCA LIFT's
   });
 
   it("takes the strictest level when an agency appears in several columns", async () => {
-    // ORCA is in Income's self-attestation column as well as its burden-of-proof column. One
-    // agency asking twice is still one box, and proof is the stricter posture.
+    // ORCA LIFT is Required on Income and also requires proof. One agency with two entries is
+    // still one box, and proof is the stricter posture.
     const app = await mountApp();
-    const orca = boxes(app, "income")[5];
+    const orcaLift = boxes(app, "income")[8];
 
-    expect(orca?.getAttribute("class")).toContain("agency-box--proof_required");
-    expect(orca?.getAttribute("class")).not.toContain("self_attestation");
+    expect(orcaLift?.getAttribute("class")).toContain("agency-box--proof_required");
+    expect(orcaLift?.getAttribute("class")).not.toContain("agency-box--required");
   });
 
   it("puts agency, level, and proof detail in each box's tooltip", async () => {
@@ -547,9 +548,9 @@ describe("app render", () => {
     expect(tip(0)).toBe("Hyde Shuttle — Self-Attestation");
     expect(tip(1)).toBe("Northshore Senior Center — Not asked");
 
-    const orca = tip(5);
-    expect(orca.startsWith("ORCA — Proof Required")).toBe(true);
-    expect(orca).toContain("Proof: ProviderOne number OR EBT number");
+    const orcaLift = tip(8);
+    expect(orcaLift.startsWith("ORCA LIFT — Proof Required")).toBe(true);
+    expect(orcaLift).toContain("Proof: ProviderOne number OR EBT number");
 
     // A question nobody asks: every box says so rather than being blank.
     for (const box of boxes(app, "mailing-address-same-as-home-address")) {
@@ -564,8 +565,23 @@ describe("app render", () => {
     expect(strip?.getAttribute("role")).toBe("img");
     const label = strip?.getAttribute("aria-label") ?? "";
     expect(label).toContain("1 proof required");
-    expect(label).toContain("3 required");
-    expect(label).toContain("10 not asked");
+    expect(label).toContain("2 required");
+    expect(label).toContain("11 not asked");
+  });
+
+  it("says when an agency never stated whether it asks a question as required or optional", async () => {
+    // Email: bare ORCA accepts self-attestation but its Asked is Unknown. The box shows the level
+    // it did state, and both the tooltip and the requirements table say what is missing.
+    const app = await mountApp();
+
+    expect(boxes(app, "email")[5]?.getAttribute("data-tip")).toBe(
+      "ORCA — Self-Attestation\nNot stated whether required or optional",
+    );
+    const rows = [...app.querySelectorAll("#question-email .requirements-table tbody tr")];
+    const orcaRow = rows.find((row) => row.querySelector("td")?.textContent === "ORCA");
+    expect(orcaRow?.textContent).toContain(
+      "Self-Attestation — not stated whether required or optional",
+    );
   });
 
   it("renders a legend for the strip once above the list", async () => {

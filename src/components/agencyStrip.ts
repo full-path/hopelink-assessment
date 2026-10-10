@@ -1,7 +1,7 @@
 import { h } from "../dom";
 import type { Agency, IntakeQuestion, RequirementLevel } from "../data/types";
 import { effectiveLevelByAgency } from "../summary";
-import { LEVEL_LABELS } from "./filters";
+import { ASKED_UNKNOWN_LABEL, LEVEL_LABELS } from "./filters";
 
 /**
  * One small box per agency, in the question header: at a glance, who asks this question and how
@@ -72,6 +72,9 @@ function boxTooltip(
   }
 
   const lines = [`${name} — ${LEVEL_LABELS[level]}`];
+  if (question.requirements.some((r) => r.agencyId === agencyId && r.askedUnknown)) {
+    lines.push(ASKED_UNKNOWN_LABEL.charAt(0).toUpperCase() + ASKED_UNKNOWN_LABEL.slice(1));
+  }
   for (const detail of proofDetailsFor(question, agencyId)) {
     lines.push(`Proof: ${detail}`);
   }

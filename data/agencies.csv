@@ -16,3 +16,4 @@ MetroFlex,Ride provider,,,
 Pierce Runner,Ride provider,,,
 Zip Shuttle,Ride provider,,Returned,
 Community Van,Ride provider,,Returned,"Appears only in the capabilities sheet: it reports vehicle capabilities but asks no intake questions. Views that list agencies per question leave it out rather than showing it as ""does not ask"" everywhere (CLAUDE.md Section 11, item 8)."
+Pierce Transit SHUTTLE,Ride provider,Pierce SHUTTLE; SHUTTLE,,"Pierce Transit's paratransit program, named in the question ""Are you registered with Pierce SHUTTLE"". Not the same program as Pierce Runner. Asks no intake questions of its own in this data and was not sent the capability survey."

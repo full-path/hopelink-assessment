@@ -4,6 +4,12 @@ export interface AgencyRequirement {
   agencyId: string; // canonical, resolved from alias table
   level: RequirementLevel;
   proofDetail?: string; // populated only when level === "proof_required"
+  /**
+   * Set on a self-attestation / proof entry when the agency never said whether it asks the
+   * question as required or optional (the Requirements tab's `Asked: Unknown`). There is then
+   * no required/optional entry for the agency, and the UI says so rather than implying one.
+   */
+  askedUnknown?: true;
 }
 
 export interface IntakeQuestion {

@@ -1,6 +1,6 @@
 import { h } from "../dom";
 import type { Agency, IntakeQuestion } from "../data/types";
-import { LEVEL_LABELS } from "./filters";
+import { ASKED_UNKNOWN_LABEL, LEVEL_LABELS } from "./filters";
 import { renderAgencyStrip } from "./agencyStrip";
 import { computeSummary } from "../summary";
 import { renderCapabilityPanel, type CapabilityContext } from "./capabilityPanel";
@@ -74,7 +74,12 @@ function renderRequirementsTable(question: IntakeQuestion, agencyById: Map<strin
           "tr",
           {},
           h("td", {}, agencyName(agencyById, req.agencyId)),
-          h("td", {}, LEVEL_LABELS[req.level]),
+          h(
+            "td",
+            {},
+            LEVEL_LABELS[req.level],
+            req.askedUnknown ? ` — ${ASKED_UNKNOWN_LABEL}` : undefined,
+          ),
           h("td", {}, req.proofDetail ?? "—"),
         ),
       ),

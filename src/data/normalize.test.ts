@@ -121,17 +121,38 @@ describe("Requirements tab", () => {
     // proof text itself contains commas. One value per cell removes the problem entirely.
     const detail = "ProviderOne number OR EBT number (any), or a pay stub";
     const question = find(
-      tabs({ requirements: [`phone,ORCA,,Proof required,"${detail}"`] }),
+      tabs({ requirements: [`phone,ORCA,Required,Proof required,"${detail}"`] }),
       "phone",
     );
+    expect(question?.requirements[1]).toEqual({
+      agencyId: "orca",
+      level: "proof_required",
+      proofDetail: detail,
+    });
+  });
+
+  it("records Asked: Unknown as a flag on the Verification entry, with no required/optional entry", () => {
+    // The agency checks the answer but never said whether it asks the question as required or
+    // optional. That gap is shown, not read as "not asked" and not guessed at.
+    const question = find(
+      tabs({ requirements: ["email,ORCA,Unknown,Self-attestation,"] }),
+      "email",
+    );
     expect(question?.requirements).toEqual([
-      { agencyId: "orca", level: "proof_required", proofDetail: detail },
+      { agencyId: "orca", level: "self_attestation", askedUnknown: true },
     ]);
   });
 
-  it("accepts a Verification with no Asked, keeping the gap visible rather than rejecting it", () => {
-    const question = find(tabs({ requirements: ["email,ORCA,,Self-attestation,"] }), "email");
-    expect(question?.requirements).toEqual([{ agencyId: "orca", level: "self_attestation" }]);
+  it("rejects a blank Asked, so 'not stated' is always a choice rather than an omission", () => {
+    expect(() => normalize(tabs({ requirements: ["email,ORCA,,Self-attestation,"] }))).toThrow(
+      /row 2 has no Asked. Use Required or Optional, or Unknown/,
+    );
+  });
+
+  it("rejects Asked: Unknown with no Verification, which records nothing", () => {
+    expect(() => normalize(tabs({ requirements: ["email,ORCA,Unknown,,"] }))).toThrow(
+      /Asked "Unknown" and no Verification/,
+    );
   });
 
   it("matches dropdown values case-insensitively", () => {
@@ -144,13 +165,7 @@ describe("Requirements tab", () => {
 
   it("rejects a value outside a dropdown, listing the allowed ones", () => {
     expect(() => normalize(tabs({ requirements: ["phone,ORCA,Mandatory,,"] }))).toThrow(
-      /Requirements tab, row 2: Asked is "Mandatory". Expected one of: "Required", "Optional"/,
-    );
-  });
-
-  it("rejects a row with neither Asked nor Verification", () => {
-    expect(() => normalize(tabs({ requirements: ["phone,ORCA,,,"] }))).toThrow(
-      /has neither Asked nor Verification/,
+      /Requirements tab, row 2: Asked is "Mandatory". Expected one of: "Required", "Optional", "Unknown"/,
     );
   });
 

@@ -158,6 +158,17 @@
         "Community Van"
       ],
       "capabilitySurvey": "returned"
+    },
+    {
+      "id": "pierce-transit-shuttle",
+      "displayName": "Pierce Transit SHUTTLE",
+      "kind": "ride_provider",
+      "aliases": [
+        "Pierce Transit SHUTTLE",
+        "Pierce SHUTTLE",
+        "SHUTTLE"
+      ],
+      "capabilitySurvey": "not_surveyed"
     }
   ],
   "questions": [
@@ -263,7 +274,7 @@
         },
         {
           "agencyId": "orca",
-          "level": "required"
+          "level": "optional"
         },
         {
           "agencyId": "orca",
@@ -302,7 +313,7 @@
       "downstreamRefs": [
         "preferred-method-of-contact"
       ],
-      "dataQualityNote": "ORCA is listed under both Providers Required and Providers Optional for this question — a direct contradiction as stated. Not altered; requires human resolution. In the one-row-per-agency layout ORCA's row records Required, the stricter of the two, pending that confirmation."
+      "dataQualityNote": "Resolved: the survey listed ORCA as both Required and Optional; recorded as Optional (decision, October 2026)."
     },
     {
       "id": "email",
@@ -390,14 +401,15 @@
         },
         {
           "agencyId": "orca",
-          "level": "self_attestation"
+          "level": "self_attestation",
+          "askedUnknown": true
         }
       ],
       "upstreamRefs": [],
       "downstreamRefs": [
         "preferred-method-of-contact"
       ],
-      "dataQualityNote": "Self-Attestation cell originally listed 'ORCA' twice (one instance with trailing whitespace); duplicate removed. Bare 'ORCA' appears in Self-Attestation but has no corresponding entry in Required or Optional for this question — completeness gap, not resolved here."
+      "dataQualityNote": "Self-Attestation cell originally listed 'ORCA' twice (one instance with trailing whitespace); duplicate removed. Open: bare 'ORCA' accepts self-attestation but has not said whether the question is required or optional, so Asked is recorded as Unknown."
     },
     {
       "id": "home-address",
@@ -457,7 +469,8 @@
         },
         {
           "agencyId": "orca",
-          "level": "self_attestation"
+          "level": "self_attestation",
+          "askedUnknown": true
         }
       ],
       "upstreamRefs": [],
@@ -466,7 +479,7 @@
         "are-you-currently-homeless",
         "are-you-a-king-county-resident"
       ],
-      "dataQualityNote": "Bare 'ORCA' appears in Self-Attestation but not in Required or Optional for this question — same completeness gap as the Email row, not resolved here. Downstream reference now resolves: the 'Mailing address same as home address?' row was added to this sheet."
+      "dataQualityNote": "Open: bare 'ORCA' accepts self-attestation but has not said whether the question is required or optional, so Asked is recorded as Unknown."
     },
     {
       "id": "mailing-address-same-as-home-address",
@@ -526,7 +539,8 @@
         },
         {
           "agencyId": "orca",
-          "level": "self_attestation"
+          "level": "self_attestation",
+          "askedUnknown": true
         }
       ],
       "upstreamRefs": [
@@ -534,7 +548,7 @@
         "are-you-currently-homeless"
       ],
       "downstreamRefs": [],
-      "dataQualityNote": "Bare 'ORCA' in Self-Attestation not present in Required or Optional for this question — completeness gap, not resolved here. Upstream reference now resolves: the 'Mailing address same as home address?' row was added to this sheet."
+      "dataQualityNote": "Open: bare 'ORCA' accepts self-attestation but has not said whether the question is required or optional, so Asked is recorded as Unknown."
     },
     {
       "id": "accessibility-needs",
@@ -787,6 +801,11 @@
           "level": "required"
         },
         {
+          "agencyId": "orca-lift",
+          "level": "proof_required",
+          "proofDetail": "ProviderOne number OR EBT number OR DSHS Client ID number OR financial aid statement or award letter showing the Washington State Opportunity Grant OR Pay stub or Most recent tax return [Self-employed applicants only] or Unemployment award letter or Labor & Industries award letter or SSI/Retirement award letter + documentation of household size"
+        },
+        {
           "agencyId": "beyond-the-borders",
           "level": "required"
         },
@@ -805,16 +824,11 @@
         {
           "agencyId": "hyde-shuttle",
           "level": "self_attestation"
-        },
-        {
-          "agencyId": "orca",
-          "level": "proof_required",
-          "proofDetail": "ProviderOne number OR EBT number OR DSHS Client ID number OR financial aid statement or award letter showing the Washington State Opportunity Grant OR Pay stub or Most recent tax return [Self-employed applicants only] or Unemployment award letter or Labor & Industries award letter or SSI/Retirement award letter + documentation of household size"
         }
       ],
       "upstreamRefs": [],
       "downstreamRefs": [],
-      "dataQualityNote": "Proof cell spanned five lines in the source; line breaks collapsed to spaces, wording unchanged. Proof entry references bare 'ORCA', but only 'ORCA LIFT' appears under Providers Required for this question — likely intended to reference ORCA LIFT specifically. Not changed; flagged for confirmation."
+      "dataQualityNote": "Proof cell spanned five lines in the source; line breaks collapsed to spaces, wording unchanged. Resolved: the source attached this proof to bare 'ORCA', but only ORCA LIFT asks the question; the proof is recorded against ORCA LIFT (decision, October 2026)."
     },
     {
       "id": "age",
@@ -933,8 +947,16 @@
         },
         {
           "agencyId": "orca",
+          "level": "required"
+        },
+        {
+          "agencyId": "orca",
           "level": "proof_required",
           "proofDetail": "State or federal documentation"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "required"
         },
         {
           "agencyId": "access-paratransit",
@@ -946,7 +968,7 @@
         "disabled"
       ],
       "downstreamRefs": [],
-      "dataQualityNote": "Upstream cell originally embedded an explanatory clause ('for ORCA, whether disability is temporary or permanent is determined by the document you upload'); link simplified to 'Disabled' and the explanation is preserved here rather than discarded. Proof segments re-delimited with ';'. Separately: ORCA and Access Paratransit appear in Burden of Proof for this question but not in Required or Optional — completeness gap, not resolved here."
+      "dataQualityNote": "Upstream cell originally embedded an explanatory clause ('for ORCA, whether disability is temporary or permanent is determined by the document you upload'); link simplified to 'Disabled' and the explanation is preserved here rather than discarded. Resolved: ORCA and Access Paratransit required proof without saying they ask the question; both are recorded as asking it, as Required, since documentary proof implies it (decision, October 2026)."
     },
     {
       "id": "do-you-need-transportation-to-dialysis",
@@ -979,7 +1001,7 @@
       ],
       "upstreamRefs": [],
       "downstreamRefs": [],
-      "dataQualityNote": "'Pierce SHUTTLE' is question text, not an agency column, and is not on the canonical agency roster. Whether it refers to the roster's 'Pierce Runner' or to a separate Pierce County program is unresolved in the source."
+      "dataQualityNote": "Resolved: SHUTTLE is Pierce Transit's paratransit program, a separate program from Pierce Runner; it is on the agency roster as 'Pierce Transit SHUTTLE'."
     },
     {
       "id": "do-you-have-a-providerone-number",
@@ -991,8 +1013,7 @@
         },
         {
           "agencyId": "homage-tap",
-          "level": "proof_required",
-          "proofDetail": "Type number into textbox"
+          "level": "self_attestation"
         }
       ],
       "upstreamRefs": [
@@ -1000,7 +1021,7 @@
         "benefits-id-number"
       ],
       "downstreamRefs": [],
-      "dataQualityNote": "Homage TAP appears under both Optional and Burden of Proof. The described 'proof' (typing a number into a textbox) is applicant self-report, not third-party documentary evidence, and arguably belongs under Self-Attestation. Not moved; flagged for confirmation. The SAP rows 'Selection of benefits program' and 'Benefits ID Number' name this question as downstream, but no reciprocal upstream link is recorded here."
+      "dataQualityNote": "Resolved: Homage TAP's described 'proof' is typing the number into a textbox, which is self-report rather than documentary evidence; recorded as Self-attestation (decision, October 2026)."
     },
     {
       "id": "are-you-currently-homeless",
@@ -1433,12 +1454,13 @@
         },
         {
           "agencyId": "sap",
-          "level": "proof_required"
+          "level": "proof_required",
+          "proofDetail": "TBD"
         }
       ],
       "upstreamRefs": [],
       "downstreamRefs": [],
-      "dataQualityNote": "SAP appears under Burden of Proof with no proof type specified, so the required document is unknown. The Income row's ORCA proof text ends with 'documentation of household size', suggesting a relationship to this question that the source records no link for."
+      "dataQualityNote": "Resolved: SAP requires proof, document type TBD. The Income row's ORCA LIFT proof text ends with 'documentation of household size', suggesting a relationship to this question that the source records no link for."
     },
     {
       "id": "selection-of-benefits-program",
@@ -1450,14 +1472,15 @@
         },
         {
           "agencyId": "sap",
-          "level": "proof_required"
+          "level": "proof_required",
+          "proofDetail": "TBD"
         }
       ],
       "upstreamRefs": [],
       "downstreamRefs": [
         "do-you-have-a-providerone-number"
       ],
-      "dataQualityNote": "Downstream reference corrected from 'Do you have a ProviderOne number?' — the trailing '?' is not part of the corresponding Question row's text. SAP's proof type is unspecified."
+      "dataQualityNote": "Downstream reference corrected from 'Do you have a ProviderOne number?' — the trailing '?' is not part of the corresponding Question row's text. Resolved: SAP requires proof, document type TBD."
     },
     {
       "id": "benefits-id-number",
@@ -1469,14 +1492,15 @@
         },
         {
           "agencyId": "sap",
-          "level": "proof_required"
+          "level": "proof_required",
+          "proofDetail": "TBD"
         }
       ],
       "upstreamRefs": [],
       "downstreamRefs": [
         "do-you-have-a-providerone-number"
       ],
-      "dataQualityNote": "Downstream reference corrected from 'Do you have a ProviderOne number?' — the trailing '?' is not part of the corresponding Question row's text. SAP's proof type is unspecified."
+      "dataQualityNote": "Downstream reference corrected from 'Do you have a ProviderOne number?' — the trailing '?' is not part of the corresponding Question row's text. Resolved: SAP requires proof, document type TBD."
     }
   ]
 }

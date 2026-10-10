@@ -52,7 +52,7 @@ var TABS = [
 /** Dropdown vocabularies. Mirror the maps of the same purpose in src/data/. */
 var KINDS = ["Ride provider", "Fare program", "Travel training"];
 var SURVEY = ["Returned"];
-var ASKED = ["Required", "Optional"];
+var ASKED = ["Required", "Optional", "Unknown"];
 var VERIFICATION = ["Self-attestation", "Proof required"];
 var ANSWERS = ["Yes", "No", "Conditional"];
 
@@ -104,8 +104,10 @@ function setUpRequirements_(ss) {
   highlight_(ss, "Requirements", [
     // A second row for the same question and agency — the contradiction this layout prevents.
     '=AND($A2<>"", COUNTIFS($A:$A, $A2, $B:$B, $B2) > 1)',
-    // A row that says nothing.
-    '=AND($A2<>"", $C2="", $D2="")',
+    // No Asked: it is always stated, as Unknown if the agency has not said.
+    '=AND($A2<>"", $C2="")',
+    // Unknown with no Verification records nothing.
+    '=AND($A2<>"", $C2="Unknown", $D2="")',
     // Proof detail on a row that does not require proof.
     '=AND($E2<>"", $D2<>"Proof required")',
   ]);
@@ -165,8 +167,12 @@ var CHECKS = [
     '=SUMPRODUCT((Requirements!A2:A<>"")*(COUNTIFS(Requirements!A2:A,Requirements!A2:A,Requirements!B2:B,Requirements!B2:B)>1))',
   ],
   [
-    "Requirements: rows with neither Asked nor Verification",
-    '=COUNTIFS(Requirements!A2:A,"<>",Requirements!C2:C,"",Requirements!D2:D,"")',
+    "Requirements: rows with no Asked (use Unknown if the agency has not said)",
+    '=COUNTIFS(Requirements!A2:A,"<>",Requirements!C2:C,"")',
+  ],
+  [
+    "Requirements: Asked Unknown with no Verification",
+    '=COUNTIFS(Requirements!A2:A,"<>",Requirements!C2:C,"Unknown",Requirements!D2:D,"")',
   ],
   [
     "Requirements: Proof detail without Proof required",
@@ -229,7 +235,7 @@ var INSTRUCTIONS = [
   "",
   "Add a question: add a row to Questions with a new ID (lowercase words joined by hyphens, e.g. do-you-use-a-scooter) and the question text. Then add one row to Requirements for each agency that asks it.",
   "Reword a question: change the Question text only. Never change an ID once it exists — comments on the site are attached to it.",
-  "Record how an agency asks a question: one Requirements row per question and agency. Asked = Required or Optional (blank if unknown). Verification = Self-attestation or Proof required. Proof detail only when Verification is Proof required.",
+  "Record how an agency asks a question: one Requirements row per question and agency. Asked = Required, Optional, or Unknown if the agency has not said (never blank; Unknown needs a Verification). Verification = Self-attestation or Proof required. Proof detail only when Verification is Proof required.",
   "Link questions: one row in Question links, from the question that comes first to the one it leads to. The site shows the link from both ends.",
   "Add an agency: add a row to Agencies first, then pick it from the dropdowns elsewhere. Kind decides whether vehicle capabilities apply to it. Aliases are other spellings, separated by semicolons.",
   "Record a provider capability: mark the agency's Capability survey as Returned on the Agencies tab, then add a Provider capabilities row per answer. A missing row means unknown, never no. Put the agency's own wording (e.g. Depends on vehicle) in Agency's wording.",

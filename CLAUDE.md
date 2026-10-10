@@ -42,7 +42,7 @@ dropdowns. Other tabs refer to questions and capabilities by ID and to agencies 
 |---|---|---|
 | `agencies.csv` — Agencies | `Agency`, `Kind`, `Aliases`, `Capability survey`, `Note` | The agency roster. Every agency name anywhere must resolve against it (name or `;`-separated alias). `Capability survey` (`Returned` / blank) states whether the agency returned the capability survey, rather than leaving it inferred. Data rather than code so staff can add an agency without a developer. |
 | `questions.csv` — Questions | `ID`, `Question`, `Data Quality Notes` | The intake questions, in display order. `ID` is assigned once and never changed; the original ids were the slugs of the original text and were kept, so existing comments stayed attached. |
-| `requirements.csv` — Requirements | `Question ID`, `Agency`, `Asked`, `Verification`, `Proof detail` | One row per (question, agency), never two. `Asked` ∈ Required / Optional; `Verification` ∈ Self-attestation / Proof required; either may be blank, not both. These are two separate facts — is it mandatory, and how is the answer checked — that the export stored as four columns of one list, which is what allowed contradictions. |
+| `requirements.csv` — Requirements | `Question ID`, `Agency`, `Asked`, `Verification`, `Proof detail` | One row per (question, agency), never two. `Asked` ∈ Required / Optional / Unknown, never blank; `Verification` ∈ Self-attestation / Proof required / blank, required when `Asked` is Unknown. These are two separate facts — is it mandatory, and how is the answer checked — that the export stored as four columns of one list, which is what allowed contradictions. |
 | `question-links.csv` — Question links | `Question ID`, `Leads to`, `Note` | One row per link, in the direction it gates. Upstream and downstream are both derived from it, so a link can no longer be recorded on one side only. |
 | `capabilities.csv` — Capabilities | `ID`, `Label` | Provider capabilities. Stable ID, rewordable label. |
 | `provider-capabilities.csv` — Provider capabilities | `Agency`, `Capability ID`, `Answer`, `Agency's wording` | One row per answer. `Answer` ∈ Yes / No / Conditional; the agency's own phrasing goes in `Agency's wording`. A missing row is `unknown`, never `no`. |
@@ -72,7 +72,7 @@ still get wrong.
 - **Agency name variants.** `Beyond the borders` vs `Beyond the Borders`; `Access paratransit` vs
   `Access Paratransit`; `ORCA` appears bare and as `ORCA (Senior)`, `ORCA (disabled)`,
   `ORCA LIFT`. *Now:* the roster's aliases resolve them, and the sheet offers agency names as a
-  dropdown. Whether the ORCA variants are distinct programs is still open — Section 11, item 1.
+  dropdown. The ORCA variants are treated as distinct programs — Section 11, item 1.
 - **Non-resolvable linkage.** `Upstream Q's` / `Downstream Q's` named other questions by
   paraphrase, not exact text or ID. Three paraphrases were matched by hand (Section 11, item 5).
   *Now:* links are by question ID, picked from a dropdown.
@@ -84,8 +84,8 @@ still get wrong.
 - **Contradictions and gaps.** An agency could appear in both Required and Optional for one
   question (ORCA on `Phone`), or have a checking method with no Required/Optional entry (six
   pairs). *Now:* one row per question and agency makes the first impossible to enter; the second
-  is a Requirements row with `Asked` blank, accepted and shown. The ORCA/Phone row was recorded as
-  Required in the conversion — Section 11, item 15.
+  is a Requirements row with `Asked: Unknown`, accepted and shown as "not stated". How each case
+  was settled is in Section 11, item 15.
 - **One-sided links.** A link was sometimes recorded only on one of its two questions (the
   ProviderOne row's note flags one case). *Now:* derived from a single row, shown at both ends.
 - **A referenced question with no row of its own.** `Mailing address same as home address?` was
@@ -128,6 +128,7 @@ interface AgencyRequirement {
   agencyId: string;        // canonical, resolved from alias table
   level: RequirementLevel;
   proofDetail?: string;    // populated only when level === "proof_required"
+  askedUnknown?: true;     // on a verification entry: the agency never said required vs optional
 }
 
 interface IntakeQuestion {
@@ -493,10 +494,9 @@ CLAUDE.md
 The following were assumed rather than confirmed, and building proceeds on these assumptions
 unless corrected:
 
-1. **ORCA variants.** Assumed to be distinct programs (`ORCA`, `ORCA (Senior)`, `ORCA (disabled)`,
-   `ORCA LIFT`) and treated as separate agency entities in the alias table, not merged. If they are
-   in fact one program inconsistently labeled in the source data, the alias table must be
-   corrected before the normalization output is trustworthy.
+1. ~~**ORCA variants.**~~ — settled (October 2026) as an assumption: `ORCA`, `ORCA (Senior)`,
+   `ORCA (Disabled)` and `ORCA LIFT` are distinct programs and separate agencies on the roster. If
+   that ever proves wrong, the roster and every Requirements row naming them must change.
 2. **Unresolved links stay visible.** Upstream/downstream references that cannot be matched to a
    question id are displayed as flagged rather than silently discarded. If the intent was for the
    tool to only show clean, resolved chains, this assumption is wrong. As of the current data
@@ -520,9 +520,10 @@ unless corrected:
    If any of these three is wrong, delete or change that row.
 6. **`SAP` is carried as its bare acronym** because the source never expands it. Confirm what it
    stands for before it appears in anything stakeholder-facing.
-7. **`Pierce SHUTTLE`**, named in the question "Are you registered with Pierce SHUTTLE", is not on
-   the agency roster. Whether it is the roster's `Pierce Runner` or a separate Pierce County
-   program is unresolved.
+7. ~~**`Pierce SHUTTLE`**~~ — settled (October 2026). SHUTTLE is Pierce Transit's paratransit
+   program, separate from Pierce Runner. It is on the roster as `Pierce Transit SHUTTLE` (a ride
+   provider, aliases `Pierce SHUTTLE` and `SHUTTLE`), with no intake questions of its own and no
+   capability survey, so the capabilities view lists it as never surveyed.
 8. **`Community Van` is on the roster but has no intake data.** It has capability answers but asks
    no questions in the intake data. Rather than omit it, views
    that list agencies per question derive their population from the question data, so it does not
@@ -580,18 +581,22 @@ unless corrected:
     - *IDs are permanent by convention, not by force.* Rewording a question keeps its comments,
       because the ID is separate from the text (Section 4). Changing an ID still orphans them;
       the sheet warns before an ID is edited, but cannot forbid it.
-15. **Decisions taken in converting to the sheet layout.**
-    - *ORCA on `Phone` is recorded as Required.* The survey listed ORCA as both Required and
-      Optional, which one row per question and agency cannot hold. Required is the stricter of the
-      two and what the summary strip already showed, so nothing displayed changed except the
-      requirements table losing its "Optional" line; the row's Data Quality Notes say so. Confirm
-      with ORCA and fix the Requirements row if it is Optional.
-    - *Links are now shown from both ends.* Of the 19 links, the export recorded 17 on one
-      question only; they now also appear on the other (e.g. `Accessibility needs` now lists the five
-      questions that name it as upstream). This is the layout working as intended, not new data;
-      if a link should not exist, delete its row.
-    - *Six requirement gaps are kept, not filled.* Where an agency had a Verification but no
-      Required/Optional entry (bare `ORCA` on Email, Home address and Mailing address; ORCA on
-      Income; ORCA and Access Paratransit on "Is the disability temporary or permanent"), the
-      Requirements row has `Asked` blank. Each needs the agency to say whether it asks the
-      question at all.
+15. **Decisions on the source data's contradictions and gaps** (decided October 2026; each
+    recorded in the question's Data Quality Notes). Settled as assumptions, not
+    confirmed with the agencies:
+    - *ORCA on `Phone` is Optional.* The survey listed it as both Required and Optional.
+    - *Income's proof belongs to ORCA LIFT,* not bare ORCA; only ORCA LIFT asks the question.
+    - *ORCA and Access Paratransit ask "Is the disability temporary or permanent" as Required.*
+      They demanded proof without saying they ask it; that they ask it was the decision, and
+      Required was inferred from the proof demand.
+    - *Homage TAP's ProviderOne "proof" is Self-attestation:* typing a number into a textbox is
+      self-report, not documentary evidence.
+    - *SAP's proof documents* on Household size, Selection of benefits program and Benefits ID
+      number are recorded as "TBD".
+    - *Still open:* bare `ORCA` on Email, Home address and Mailing address accepts
+      self-attestation but has not said whether the question is required or optional. These rows
+      are `Asked: Unknown`, which the app shows as "not stated".
+    - *Links are shown from both ends* after the conversion to the sheet layout: of the 19 links,
+      the export recorded 17 on one question only (e.g. `Accessibility needs` now lists the five
+      questions that name it as upstream). The layout working as intended, not new data; if a link
+      should not exist, delete its row.

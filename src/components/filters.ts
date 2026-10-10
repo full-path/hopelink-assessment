@@ -37,6 +37,12 @@ export const LEVEL_LABELS: Record<RequirementLevel, string> = {
   proof_required: "Proof Required",
 };
 
+/**
+ * Shown beside a self-attestation / proof level when the agency never said whether it asks the
+ * question as required or optional (`AgencyRequirement.askedUnknown`).
+ */
+export const ASKED_UNKNOWN_LABEL = "not stated whether required or optional";
+
 export function renderFilters(
   agencies: Agency[],
   state: FilterState,
