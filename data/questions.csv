@@ -1,0 +1,44 @@
+ID,Question,Data Quality Notes
+first-and-last,First and last,
+phone,Phone,"ORCA is listed under both Providers Required and Providers Optional for this question — a direct contradiction as stated. Not altered; requires human resolution. In the one-row-per-agency layout ORCA's row records Required, the stricter of the two, pending that confirmation."
+email,Email,"Self-Attestation cell originally listed 'ORCA' twice (one instance with trailing whitespace); duplicate removed. Bare 'ORCA' appears in Self-Attestation but has no corresponding entry in Required or Optional for this question — completeness gap, not resolved here."
+home-address,Home address,"Bare 'ORCA' appears in Self-Attestation but not in Required or Optional for this question — same completeness gap as the Email row, not resolved here. Downstream reference now resolves: the 'Mailing address same as home address?' row was added to this sheet."
+mailing-address-same-as-home-address,Mailing address same as home address?,"Added deliberately, to by-question.csv and to this sheet, as a question in its own right. The agency survey never asked it — it appeared only as a reference from the Home address and Mailing address rows — so the agency columns are blank rather than inferred: no agency reported a requirement level or proof burden for it. Upstream/Downstream are blank because both neighbours already declare these edges, and this sheet declares each edge from one side only."
+mailing-address,Mailing address,"Bare 'ORCA' in Self-Attestation not present in Required or Optional for this question — completeness gap, not resolved here. Upstream reference now resolves: the 'Mailing address same as home address?' row was added to this sheet."
+accessibility-needs,Accessibility needs,"Typo 'providercapabilities' corrected to 'provider capabilities'. The original cell carried a Downstream reference to 'Which provider capabilities are needed', which is not an intake question but a pointer to provider capability data. It is removed here because that relationship is modelled properly in question-capability-map.csv, which links this question to the six capability columns it is understood to ask about — so the reference was redundant as well as unresolvable."
+gender,Gender,
+race,Race,
+ethnicity,Ethnicity,
+primary-language,Primary language,
+veteran-status,Veteran Status,"This row appeared as 'Military service' in the previous revision of this file; the source sheet's wording is used here, which changes the generated question id."
+income,Income,"Proof cell spanned five lines in the source; line breaks collapsed to spaces, wording unchanged. Proof entry references bare 'ORCA', but only 'ORCA LIFT' appears under Providers Required for this question — likely intended to reference ORCA LIFT specifically. Not changed; flagged for confirmation."
+age,Age,
+disabled,Disabled,"Proof segments were comma-delimited in the source, which is ambiguous against the commas inside proof text; re-delimited with ';'. Downstream reference corrected from 'Temporary or permanent disability?' to match the exact text of the corresponding Question row."
+is-the-disability-temporary-or-permanent,Is the disability temporary or permanent,"Upstream cell originally embedded an explanatory clause ('for ORCA, whether disability is temporary or permanent is determined by the document you upload'); link simplified to 'Disabled' and the explanation is preserved here rather than discarded. Proof segments re-delimited with ';'. Separately: ORCA and Access Paratransit appear in Burden of Proof for this question but not in Required or Optional — completeness gap, not resolved here."
+do-you-need-transportation-to-dialysis,Do you need transportation to dialysis?,
+are-you-registered-with-pierce-shuttle,Are you registered with Pierce SHUTTLE,"'Pierce SHUTTLE' is question text, not an agency column, and is not on the canonical agency roster. Whether it refers to the roster's 'Pierce Runner' or to a separate Pierce County program is unresolved in the source."
+do-you-have-a-providerone-number,Do you have a ProviderOne number,"Homage TAP appears under both Optional and Burden of Proof. The described 'proof' (typing a number into a textbox) is applicant self-report, not third-party documentary evidence, and arguably belongs under Self-Attestation. Not moved; flagged for confirmation. The SAP rows 'Selection of benefits program' and 'Benefits ID Number' name this question as downstream, but no reciprocal upstream link is recorded here."
+are-you-currently-homeless,Are you currently homeless?,"Upstream/Downstream casing corrected to match exact Question-row text ('Home Address'->'Home address', 'Mailing Address'->'Mailing address')."
+preferred-method-of-contact,Preferred method of contact?,"Upstream cell held two comma-separated references ('Phone number, email'); re-delimited with ';' and matched to the 'Phone' and 'Email' Question rows. 'Phone number' is a paraphrase of 'Phone' — match assumed, not stated in the source."
+may-we-leave-a-message,May we leave a message?,"Upstream reference corrected from 'Preferred Method of Contact' to match exact Question-row text, including trailing '?'."
+emergency-contact,Emergency Contact,Required cell had a trailing comma producing an empty agency token; removed.
+are-you-a-king-county-resident,Are you a King County Resident?,Upstream reference casing corrected from 'Home Address' to match exact Question-row text.
+can-you-get-in-and-out-of-a-vehicle-on-your-own,Can you get in and out of a vehicle on your own?,
+do-you-live-alone,Do you live alone,
+are-you-an-immigrant,Are you an immigrant,
+marital-status,Marital Status,
+sexual-orientation,Sexual Orientation,
+do-you-need-an-interpreter,Do you need an interpreter,"Upstream cell held two comma-separated references ('Preferred Language, accessibility needs'); re-delimited with ';'. 'Preferred Language' is a paraphrase of the 'Primary language' Question row — match assumed, not stated in the source."
+do-you-have-any-allergies-we-need-to-be-aware-of,Do you have any allergies we need to be aware of,
+do-you-require-a-service-animal,Do you require a service animal,
+do-you-smoke,Do you smoke,
+do-you-require-portable-oxygen,Do you require portable Oxygen,
+do-you-need-a-companion,Do you need a companion,
+do-you-have-hearing-issues-or-sight-issues,Do you have hearing issues or sight issues,"Upstream reference given as 'Disability status'; matched to the 'Disabled' Question row as a paraphrase — match assumed, not stated in the source."
+how-many-riders-to-expect,How many riders to expect,
+anything-you-would-like-your-driver-to-know-about-you,Anything you would like your driver to know about you?,
+do-you-require-any-special-assistance-extra-load-time-comfort-pet-etc,"Do you require any special assistance (extra load time, comfort pet, etc)",
+special-directions-gate-code-etc,"Special directions (gate code, etc)",
+household-size,Household Size,"SAP appears under Burden of Proof with no proof type specified, so the required document is unknown. The Income row's ORCA proof text ends with 'documentation of household size', suggesting a relationship to this question that the source records no link for."
+selection-of-benefits-program,Selection of benefits program,Downstream reference corrected from 'Do you have a ProviderOne number?' — the trailing '?' is not part of the corresponding Question row's text. SAP's proof type is unspecified.
+benefits-id-number,Benefits ID Number,Downstream reference corrected from 'Do you have a ProviderOne number?' — the trailing '?' is not part of the corresponding Question row's text. SAP's proof type is unspecified.

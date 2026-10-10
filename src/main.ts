@@ -3,7 +3,7 @@ import bundledData from "./data/questions.json";
 import bundledCapabilities from "./data/capabilities.json";
 import type { Agency, CapabilityData, IntakeQuestion, NormalizedData } from "./data/types";
 import type { Dataset } from "./data/dataset";
-import { normalizeCsv } from "./data/normalize";
+import { assembleQuestionUpload, normalizeQuestions } from "./data/normalize";
 import { resolveQuestionCapabilityLinks } from "./data/normalizeCapabilities";
 import { computeQuestionCapabilityInsight, isRideProvider } from "./capabilities";
 import { h, clear } from "./dom";
@@ -43,7 +43,7 @@ const DEFAULT_FILTERS: FilterState = {
 const commentsClient = createCommentsClient(import.meta.env.VITE_COMMENTS_ENDPOINT);
 
 /**
- * Whether to show the "Preview a replacement CSV" control.
+ * Whether to show the "Preview replacement CSVs" control.
  *
  * Hidden for now by request. The machinery behind it is deliberately left intact and wired up —
  * `handleUpload`, `setData`, and the shared in-browser normalization path they drive — so that
@@ -98,12 +98,14 @@ function setData(next: NormalizedData, nextSource: DataSource): void {
   render();
 }
 
-async function handleUpload(file: File): Promise<void> {
+async function handleUpload(files: File[]): Promise<void> {
   try {
-    const text = await file.text();
-    setData(normalizeCsv(text, base.dataset.data.agencies), {
+    const uploaded = await Promise.all(
+      files.map(async (file) => ({ name: file.name, text: await file.text() })),
+    );
+    setData(normalizeQuestions(assembleQuestionUpload(uploaded), base.dataset.data.agencies), {
       kind: "uploaded",
-      fileName: file.name,
+      fileName: uploaded.map((file) => file.name).join(", "),
     });
   } catch (error) {
     // Keep whatever dataset is currently displayed; just surface why the upload failed.
@@ -221,16 +223,16 @@ function recordPostedComment(comment: Comment): void {
 /**
  * Assembles the capability context for the currently displayed question set.
  *
- * The question/capability map is stored against question *text* and resolved here rather than
- * baked into ids at build time, so an uploaded CSV (which may rename or drop questions) simply
- * loses the links it no longer matches instead of rendering stale ones. Capability data itself
+ * The question/capability map is resolved here, against the displayed question set, rather than
+ * at build time, so an uploaded preview that drops a question simply loses the links it no longer
+ * matches instead of rendering stale ones. Capability data itself
  * comes from the base dataset (snapshot or live sheet) — upload replaces the questions only.
  */
 function buildCapabilityContext(
   questions: IntakeQuestion[],
   agencies: Agency[],
   agencyById: Map<string, Agency>,
-): { context: CapabilityContext; unmatchedLinkTexts: string[] } {
+): { context: CapabilityContext; unmatchedQuestionIds: string[] } {
   const { byQuestionId, unmatched } = resolveQuestionCapabilityLinks(
     capabilities.questionLinks,
     questions,
@@ -250,7 +252,7 @@ function buildCapabilityContext(
       linksByQuestionId: byQuestionId,
       rideProviderIds: new Set(agencies.filter(isRideProvider).map((agency) => agency.id)),
     },
-    unmatchedLinkTexts: [...new Set(unmatched.map((link) => link.questionText))],
+    unmatchedQuestionIds: [...new Set(unmatched.map((link) => link.questionId))],
   };
 }
 
@@ -361,7 +363,7 @@ function render(): void {
   );
   const intakeAgencies = agencies.filter((agency) => agencyIdsWithIntakeData.has(agency.id));
 
-  const { context, unmatchedLinkTexts } = buildCapabilityContext(questions, agencies, agencyById);
+  const { context, unmatchedQuestionIds } = buildCapabilityContext(questions, agencies, agencyById);
 
   const comments: CommentContext = {
     state: commentState,
@@ -376,7 +378,7 @@ function render(): void {
   const dataSourceEl = renderDataSourceBar({
     source,
     error: uploadError,
-    onUpload: (file) => void handleUpload(file),
+    onUpload: (files) => void handleUpload(files),
     onReset: () => {
       setData(base.dataset.data, base.source);
     },
@@ -406,7 +408,7 @@ function render(): void {
           questions,
           capabilities: capabilities.capabilities,
           profiles: context.profiles,
-          unmatchedLinkTexts,
+          unmatchedQuestionIds,
           commentContext: comments,
         }),
   );

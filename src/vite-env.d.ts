@@ -15,21 +15,18 @@ interface ImportMetaEnv {
    */
   readonly VITE_COMMENTS_ENDPOINT?: string;
   /**
-   * Set to the string `"true"` to show the "Preview a replacement CSV" control, which is hidden
+   * Set to the string `"true"` to show the "Preview replacement CSVs" control, which is hidden
    * by default. Anything else, including unset, leaves it hidden; the upload machinery behind it
    * stays built either way.
    */
   readonly VITE_SHOW_CSV_UPLOAD?: string;
   /**
-   * Published-to-web CSV URLs of the live Google Sheet's four tabs (README, "Live data from a
-   * Google Sheet"). Public by construction — publishing a tab makes it readable by anyone with
-   * the URL. Set all four or none: with none, the app shows the bundled snapshot only; with some,
-   * it reports the gap and shows the snapshot. See `readSheetConfig` in `src/sheetSource.ts`.
+   * The live Google Sheet's "Publish to web" link, ending in `/pub` (README, "Live data from a
+   * Google Sheet"). Public by construction — publishing makes the chosen tabs readable by anyone
+   * with the URL. The tabs themselves are identified in `src/sheetTabs.ts`. Unset, the app shows
+   * the bundled snapshot only. See `readSheetConfig` in `src/sheetSource.ts`.
    */
-  readonly VITE_SHEET_AGENCIES_CSV_URL?: string;
-  readonly VITE_SHEET_QUESTIONS_CSV_URL?: string;
-  readonly VITE_SHEET_CAPABILITIES_CSV_URL?: string;
-  readonly VITE_SHEET_CAPABILITY_MAP_CSV_URL?: string;
+  readonly VITE_SHEET_PUBLISHED_URL?: string;
 }
 
 interface ImportMeta {

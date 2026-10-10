@@ -33,13 +33,10 @@ jobs:
           # Unset is a valid state — the site builds and deploys with commenting disabled.
           # See apps-script/README.md.
           VITE_COMMENTS_ENDPOINT: ${{ vars.COMMENTS_ENDPOINT }}
-          # Published-CSV URLs of the live Google Sheet's tabs — also variables, also public by
-          # construction. All four or none; unset, the site shows the committed snapshot only.
-          # See README "Live data from a Google Sheet".
-          VITE_SHEET_AGENCIES_CSV_URL: ${{ vars.SHEET_AGENCIES_CSV_URL }}
-          VITE_SHEET_QUESTIONS_CSV_URL: ${{ vars.SHEET_QUESTIONS_CSV_URL }}
-          VITE_SHEET_CAPABILITIES_CSV_URL: ${{ vars.SHEET_CAPABILITIES_CSV_URL }}
-          VITE_SHEET_CAPABILITY_MAP_CSV_URL: ${{ vars.SHEET_CAPABILITY_MAP_CSV_URL }}
+          # The live Google Sheet's "Publish to web" link — also a variable, also public by
+          # construction. Its tabs are identified in src/sheetTabs.ts. Unset, the site shows the
+          # committed snapshot only. See README "Live data from a Google Sheet".
+          VITE_SHEET_PUBLISHED_URL: ${{ vars.SHEET_PUBLISHED_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { normalize, parseAgencyList, parseBurdenOfProof, parseCsv } from "./normalize";
+import { assembleQuestionUpload, normalizeQuestions, type QuestionSourceTexts } from "./normalize";
 import { createAgencyResolver, parseAgencyRoster } from "./agencies";
 import { slugify } from "./text";
 
@@ -10,11 +10,28 @@ const ROSTER = parseAgencyRoster(
 );
 const resolveAgencyId = createAgencyResolver(ROSTER);
 
-describe("resolveAgencyId (committed roster)", () => {
-  it("resolves an exact canonical name", () => {
-    expect(resolveAgencyId("Hyde Shuttle")).toBe("hyde-shuttle");
-  });
+const QUESTIONS_HEADER = "ID,Question,Data Quality Notes";
+const REQUIREMENTS_HEADER = "Question ID,Agency,Asked,Verification,Proof detail";
+const LINKS_HEADER = "Question ID,Leads to,Note";
 
+/** Builds the three tabs from row lines; the header is added for you. */
+function tabs(
+  rows: { questions?: string[]; requirements?: string[]; links?: string[] } = {},
+): QuestionSourceTexts {
+  return {
+    questions: [QUESTIONS_HEADER, ...(rows.questions ?? ["phone,Phone,", "email,Email,"])].join(
+      "\n",
+    ),
+    requirements: [REQUIREMENTS_HEADER, ...(rows.requirements ?? [])].join("\n"),
+    questionLinks: [LINKS_HEADER, ...(rows.links ?? [])].join("\n"),
+  };
+}
+
+const normalize = (sources: QuestionSourceTexts) => normalizeQuestions(sources, ROSTER);
+const find = (sources: QuestionSourceTexts, id: string) =>
+  normalize(sources).questions.find((q) => q.id === id);
+
+describe("resolveAgencyId (committed roster)", () => {
   it("resolves the capabilities sheet's short name for Sound Generations VTS", () => {
     expect(resolveAgencyId("SG VTS")).toBe("sound-generations-vts");
     expect(resolveAgencyId("Sound Generations VTS")).toBe("sound-generations-vts");
@@ -22,210 +39,227 @@ describe("resolveAgencyId (committed roster)", () => {
 
   it("resolves known casing variants to the same canonical id", () => {
     expect(resolveAgencyId("Beyond the borders")).toBe("beyond-the-borders");
-    expect(resolveAgencyId("Beyond the Borders")).toBe("beyond-the-borders");
     expect(resolveAgencyId("Access paratransit")).toBe("access-paratransit");
     expect(resolveAgencyId("ORCA (disabled)")).toBe("orca-disabled");
-  });
-
-  it("trims surrounding and collapses internal whitespace before matching", () => {
-    expect(resolveAgencyId("  ORCA  ")).toBe("orca");
   });
 
   it("treats bare ORCA and ORCA program variants as distinct agencies", () => {
     expect(resolveAgencyId("ORCA")).toBe("orca");
     expect(resolveAgencyId("ORCA (Senior)")).toBe("orca-senior");
-    expect(resolveAgencyId("ORCA (Disabled)")).toBe("orca-disabled");
     expect(resolveAgencyId("ORCA LIFT")).toBe("orca-lift");
-  });
-
-  it("throws on an unrecognized agency name rather than silently dropping it", () => {
-    expect(() => resolveAgencyId("Some New Agency")).toThrow(/Unrecognized agency name/);
-  });
-});
-
-describe("parseAgencyList", () => {
-  it("returns an empty array for an empty cell", () => {
-    expect(parseAgencyList("", resolveAgencyId)).toEqual([]);
-    expect(parseAgencyList("   ", resolveAgencyId)).toEqual([]);
-  });
-
-  it("splits a comma-delimited list and resolves each agency", () => {
-    expect(parseAgencyList("Hyde Shuttle, ORCA LIFT, Beyond the Borders", resolveAgencyId)).toEqual(
-      ["hyde-shuttle", "orca-lift", "beyond-the-borders"],
-    );
-  });
-
-  it("resolves a single-agency cell", () => {
-    expect(parseAgencyList("Homage TAP", resolveAgencyId)).toEqual(["homage-tap"]);
-  });
-});
-
-describe("parseBurdenOfProof", () => {
-  it("returns an empty array for an empty cell", () => {
-    expect(parseBurdenOfProof("", resolveAgencyId)).toEqual([]);
-  });
-
-  it("parses a single agency with embedded proof detail", () => {
-    expect(parseBurdenOfProof("ORCA (Photo ID)", resolveAgencyId)).toEqual([
-      { agencyId: "orca", level: "proof_required", proofDetail: "Photo ID" },
-    ]);
-  });
-
-  it("splits multiple semicolon-delimited agency/proof segments without breaking on commas inside proof detail", () => {
-    expect(
-      parseBurdenOfProof(
-        "ORCA (ProviderOne number OR EBT number OR DSHS Client ID number); Access Paratransit (signed note from doctor)",
-        resolveAgencyId,
-      ),
-    ).toEqual([
-      {
-        agencyId: "orca",
-        level: "proof_required",
-        proofDetail: "ProviderOne number OR EBT number OR DSHS Client ID number",
-      },
-      {
-        agencyId: "access-paratransit",
-        level: "proof_required",
-        proofDetail: "signed note from doctor",
-      },
-    ]);
   });
 });
 
 describe("slugify", () => {
-  it("lowercases and hyphenates question text", () => {
-    expect(slugify("First and last")).toBe("first-and-last");
-  });
-
-  it("strips trailing punctuation", () => {
+  it("lowercases and hyphenates text, dropping trailing punctuation", () => {
     expect(slugify("Are you currently homeless?")).toBe("are-you-currently-homeless");
   });
 });
 
-describe("normalize", () => {
-  const baseRow = {
-    Question: "",
-    "Providers Required": "",
-    "Providers Optional": "",
-    "Providers Self Attestation": "",
-    "Providers Burden of Proof": "",
-    "Upstream Q's": "",
-    "Downstream Q's": "",
-  };
-
-  it("resolves an upstream/downstream link that matches another question's text exactly", () => {
-    const rows = [
-      { ...baseRow, Question: "Race", "Downstream Q's": "Ethnicity" },
-      { ...baseRow, Question: "Ethnicity", "Upstream Q's": "Race" },
-    ];
-    const data = normalize(rows, ROSTER);
-    const race = data.questions.find((q) => q.id === "race");
-    const ethnicity = data.questions.find((q) => q.id === "ethnicity");
-    expect(race?.downstreamRefs).toEqual(["ethnicity"]);
-    expect(race?.unresolvedLinks).toBeUndefined();
-    expect(ethnicity?.upstreamRefs).toEqual(["race"]);
+describe("Questions tab", () => {
+  it("takes each question's id from the sheet, not from its text, in sheet order", () => {
+    const data = normalize(tabs({ questions: ["phone,Telephone number,", "email,Email,"] }));
+    expect(data.questions.map((q) => [q.id, q.text])).toEqual([
+      ["phone", "Telephone number"],
+      ["email", "Email"],
+    ]);
   });
 
-  it("flags a non-matching upstream/downstream reference as unresolved instead of dropping or guessing", () => {
-    const rows = [
-      {
-        ...baseRow,
-        Question: "Home address",
-        "Downstream Q's": "Mailing address same as home address?",
-      },
-    ];
-    const data = normalize(rows, ROSTER);
-    const question = data.questions[0];
-    expect(question?.downstreamRefs).toEqual([]);
-    expect(question?.unresolvedLinks).toEqual(["Mailing address same as home address?"]);
+  it("carries a data quality note through, omitting it when blank", () => {
+    const data = normalize(
+      tabs({ questions: ['phone,Phone,"Check this, please"', "email,Email,"] }),
+    );
+    expect(data.questions[0]?.dataQualityNote).toBe("Check this, please");
+    expect(data.questions[1]).not.toHaveProperty("dataQualityNote");
   });
 
-  it("resolves every reference in a semicolon-delimited link cell", () => {
-    const rows = [
-      { ...baseRow, Question: "Phone" },
-      { ...baseRow, Question: "Email" },
-      { ...baseRow, Question: "Preferred method of contact?", "Upstream Q's": "Phone; Email" },
-    ];
-    const data = normalize(rows, ROSTER);
-    const contact = data.questions.find((q) => q.id === "preferred-method-of-contact");
-    expect(contact?.upstreamRefs).toEqual(["phone", "email"]);
-    expect(contact?.unresolvedLinks).toBeUndefined();
-  });
-
-  it("keeps resolved and unresolved references separate within one link cell", () => {
-    const rows = [
-      { ...baseRow, Question: "Accessibility needs" },
-      {
-        ...baseRow,
-        Question: "Do you need an interpreter",
-        "Upstream Q's": "Accessibility needs; Preferred Language",
-      },
-    ];
-    const data = normalize(rows, ROSTER);
-    const interpreter = data.questions.find((q) => q.id === "do-you-need-an-interpreter");
-    expect(interpreter?.upstreamRefs).toEqual(["accessibility-needs"]);
-    expect(interpreter?.unresolvedLinks).toEqual(["Preferred Language"]);
-  });
-
-  it("does not split a link cell on commas, since question text can contain them", () => {
-    const rows = [
-      { ...baseRow, Question: "Special directions (gate code, etc)" },
-      {
-        ...baseRow,
-        Question: "Accessibility needs",
-        "Downstream Q's": "Special directions (gate code, etc)",
-      },
-    ];
-    const data = normalize(rows, ROSTER);
-    const needs = data.questions.find((q) => q.id === "accessibility-needs");
-    expect(needs?.downstreamRefs).toEqual(["special-directions-gate-code-etc"]);
-  });
-
-  it("carries a Data Quality Notes cell through verbatim when present", () => {
-    const rows = [
-      {
-        ...baseRow,
-        Question: "Phone",
-        "Providers Required": "ORCA",
-        "Providers Optional": "ORCA",
-        "Data Quality Notes": "ORCA is listed under both Required and Optional.",
-      },
-    ];
-    const data = normalize(rows, ROSTER);
-    expect(data.questions[0]?.dataQualityNote).toBe(
-      "ORCA is listed under both Required and Optional.",
+  it("rejects an id that is not lowercase words joined by hyphens", () => {
+    expect(() => normalize(tabs({ questions: ["Home Address,Home address,"] }))).toThrow(
+      /Questions tab, row 2: ID "Home Address" must be lowercase words/,
     );
   });
 
-  it("omits dataQualityNote entirely when the cell is blank", () => {
-    const rows = [{ ...baseRow, Question: "Gender" }];
-    const data = normalize(rows, ROSTER);
-    expect(data.questions[0]?.dataQualityNote).toBeUndefined();
+  it("rejects a duplicate id", () => {
+    expect(() => normalize(tabs({ questions: ["phone,Phone,", "phone,Telephone,"] }))).toThrow(
+      /row 3: duplicate question ID "phone"/,
+    );
   });
 
-  it("throws when two rows produce the same slug id", () => {
-    const rows = [
-      { ...baseRow, Question: "Phone" },
-      { ...baseRow, Question: "phone" },
-    ];
-    expect(() => normalize(rows, ROSTER)).toThrow(/Duplicate question id/);
+  it("rejects a question with an id but no text", () => {
+    expect(() => normalize(tabs({ questions: ["phone,,"] }))).toThrow(/"phone" has no text/);
+  });
+
+  it("names the tab when a required column is missing", () => {
+    expect(() => normalizeQuestions({ ...tabs(), questions: "Question\nPhone" }, ROSTER)).toThrow(
+      /Questions tab is missing expected column\(s\): "ID"/,
+    );
+  });
+
+  it("ignores extra columns, so the sheet can carry helper columns", () => {
+    const data = normalize({
+      ...tabs(),
+      requirements: `${REQUIREMENTS_HEADER},Question text (lookup)\nphone,ORCA,Required,,,Phone`,
+    });
+    expect(data.questions[0]?.requirements).toEqual([{ agencyId: "orca", level: "required" }]);
   });
 });
 
-describe("parseCsv", () => {
-  it("skips a fully blank row between the header and data, as seen in past CSV revisions", () => {
-    const csv = [
-      "Question,Providers Required,Providers Optional,Providers Self Attestation,Providers Burden of Proof,Upstream Q's,Downstream Q's",
-      ",,,,,,",
-      "Phone,Hyde Shuttle,,,,,",
-    ].join("\n");
-    const rows = parseCsv(csv);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.Question).toBe("Phone");
+describe("Requirements tab", () => {
+  it("turns Asked and Verification into one entry each, with proof detail on the proof entry", () => {
+    const question = find(
+      tabs({ requirements: ["phone,ORCA,Required,Proof required,Photo ID"] }),
+      "phone",
+    );
+    expect(question?.requirements).toEqual([
+      { agencyId: "orca", level: "required" },
+      { agencyId: "orca", level: "proof_required", proofDetail: "Photo ID" },
+    ]);
   });
 
-  it("rejects a CSV whose header lacks the expected columns, naming the missing ones", () => {
-    const csv = ["Question,Providers Required", "Phone,Hyde Shuttle"].join("\n");
-    expect(() => parseCsv(csv)).toThrow(/missing expected column.*"Providers Optional"/s);
+  it("keeps a proof detail containing commas and parentheses intact", () => {
+    // The old layout packed several agencies' proof into one cell, delimited by ";", because
+    // proof text itself contains commas. One value per cell removes the problem entirely.
+    const detail = "ProviderOne number OR EBT number (any), or a pay stub";
+    const question = find(
+      tabs({ requirements: [`phone,ORCA,,Proof required,"${detail}"`] }),
+      "phone",
+    );
+    expect(question?.requirements).toEqual([
+      { agencyId: "orca", level: "proof_required", proofDetail: detail },
+    ]);
+  });
+
+  it("accepts a Verification with no Asked, keeping the gap visible rather than rejecting it", () => {
+    const question = find(tabs({ requirements: ["email,ORCA,,Self-attestation,"] }), "email");
+    expect(question?.requirements).toEqual([{ agencyId: "orca", level: "self_attestation" }]);
+  });
+
+  it("matches dropdown values case-insensitively", () => {
+    const question = find(
+      tabs({ requirements: ["phone,ORCA,optional,SELF-ATTESTATION,"] }),
+      "phone",
+    );
+    expect(question?.requirements.map((r) => r.level)).toEqual(["optional", "self_attestation"]);
+  });
+
+  it("rejects a value outside a dropdown, listing the allowed ones", () => {
+    expect(() => normalize(tabs({ requirements: ["phone,ORCA,Mandatory,,"] }))).toThrow(
+      /Requirements tab, row 2: Asked is "Mandatory". Expected one of: "Required", "Optional"/,
+    );
+  });
+
+  it("rejects a row with neither Asked nor Verification", () => {
+    expect(() => normalize(tabs({ requirements: ["phone,ORCA,,,"] }))).toThrow(
+      /has neither Asked nor Verification/,
+    );
+  });
+
+  it("rejects proof detail unless Verification is Proof required", () => {
+    expect(() =>
+      normalize(tabs({ requirements: ["phone,ORCA,Required,Self-attestation,Photo ID"] })),
+    ).toThrow(/Proof detail but Verification is not "Proof required"/);
+  });
+
+  it("rejects a second row for one agency and question, the contradiction the old layout allowed", () => {
+    // Spelled two ways on purpose: the pair is checked after alias resolution.
+    expect(() =>
+      normalize(
+        tabs({
+          requirements: [
+            "phone,Beyond the Borders,Required,,",
+            "phone,Beyond the borders,Optional,,",
+          ],
+        }),
+      ),
+    ).toThrow(/row 3: a second row for "Beyond the borders" on "phone"/);
+  });
+
+  it("allows the same agency on different questions", () => {
+    const data = normalize(
+      tabs({ requirements: ["phone,ORCA,Required,,", "email,ORCA,Optional,,"] }),
+    );
+    expect(data.questions.map((q) => q.requirements.length)).toEqual([1, 1]);
+  });
+
+  it("rejects an unknown question id", () => {
+    expect(() => normalize(tabs({ requirements: ["fax,ORCA,Required,,"] }))).toThrow(
+      /Requirements tab, row 2: unknown Question ID "fax"/,
+    );
+  });
+
+  it("rejects an agency that is not on the roster", () => {
+    expect(() => normalize(tabs({ requirements: ["phone,Some New Agency,Required,,"] }))).toThrow(
+      /Unrecognized agency name "Some New Agency"/,
+    );
+  });
+});
+
+describe("Question links tab", () => {
+  it("records each link once and derives both ends from it", () => {
+    const data = normalize(tabs({ links: ["phone,email,"] }));
+    expect(data.questions[0]).toMatchObject({ upstreamRefs: [], downstreamRefs: ["email"] });
+    expect(data.questions[1]).toMatchObject({ upstreamRefs: ["phone"], downstreamRefs: [] });
+  });
+
+  it("ignores a link entered twice", () => {
+    const data = normalize(tabs({ links: ["phone,email,", "phone,email,"] }));
+    expect(data.questions[0]?.downstreamRefs).toEqual(["email"]);
+  });
+
+  it("keeps a link to an unknown question as unresolved rather than dropping it", () => {
+    const data = normalize(tabs({ links: ["phone,preferred-contact,"] }));
+    expect(data.questions[0]?.unresolvedLinks).toEqual(["preferred-contact"]);
+    expect(data.questions[0]?.downstreamRefs).toEqual([]);
+    expect(data.questions[1]).not.toHaveProperty("unresolvedLinks");
+  });
+
+  it("keeps a link from an unknown question as unresolved on the end that exists", () => {
+    const data = normalize(tabs({ links: ["old-question,email,"] }));
+    expect(data.questions[1]?.unresolvedLinks).toEqual(["old-question"]);
+  });
+
+  it("rejects a link where neither end is a known question", () => {
+    expect(() => normalize(tabs({ links: ["fax,pager,"] }))).toThrow(
+      /neither "fax" nor "pager" is a known question ID/,
+    );
+  });
+
+  it("rejects a question leading to itself", () => {
+    expect(() => normalize(tabs({ links: ["phone,phone,"] }))).toThrow(/"phone" leads to itself/);
+  });
+});
+
+describe("assembleQuestionUpload", () => {
+  const { questions, requirements, questionLinks } = tabs();
+
+  it("recognises each tab by its header row, whatever the file is called and in any order", () => {
+    expect(
+      assembleQuestionUpload([
+        { name: "Sheet - Question links.csv", text: questionLinks },
+        { name: "export (1).csv", text: questions },
+        { name: "export (2).csv", text: requirements },
+      ]),
+    ).toEqual({ questions, requirements, questionLinks });
+  });
+
+  it("names the tabs that are missing", () => {
+    expect(() => assembleQuestionUpload([{ name: "q.csv", text: questions }])).toThrow(
+      /missing Requirements, Question links/,
+    );
+  });
+
+  it("rejects two files for the same tab", () => {
+    expect(() =>
+      assembleQuestionUpload([
+        { name: "a.csv", text: questions },
+        { name: "b.csv", text: questions },
+      ]),
+    ).toThrow(/"a.csv" and "b.csv" are both a Questions tab/);
+  });
+
+  it("rejects a file that is none of the three tabs", () => {
+    expect(() =>
+      assembleQuestionUpload([{ name: "capabilities.csv", text: "ID,Label\nlift,Lift" }]),
+    ).toThrow(/"capabilities.csv" is not a Questions, Requirements or Question links tab/);
   });
 });

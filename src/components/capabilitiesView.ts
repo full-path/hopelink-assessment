@@ -22,7 +22,7 @@ export interface CapabilitiesViewProps {
   /** Pre-sorted for stable display order. */
   profiles: AgencyCapabilityProfile[];
   /** Map entries whose question text matched nothing in the active dataset. */
-  unmatchedLinkTexts: string[];
+  unmatchedQuestionIds: string[];
   commentContext: CommentContext;
 }
 
@@ -230,18 +230,18 @@ export function renderCapabilitiesView(props: CapabilitiesViewProps): HTMLElemen
       "p",
       { className: "view-intro" },
       "What each provider can physically accommodate, from ",
-      h("code", {}, "data/capabilities.csv"),
+      h("code", {}, "data/provider-capabilities.csv"),
       ". Intake questions exist to match a rider to these capabilities, so this is the other " +
         "half of the standardization argument: it shows which questions are doing real work.",
     ),
-    props.unmatchedLinkTexts.length > 0
+    props.unmatchedQuestionIds.length > 0
       ? h(
           "div",
           { className: "notice notice--warning", role: "status" },
           h("strong", {}, "Unmatched question links: "),
-          `the question/capability map references ${String(props.unmatchedLinkTexts.length)} ` +
-            `question(s) that do not exist in the dataset currently displayed — ` +
-            `${props.unmatchedLinkTexts.map((text) => `"${text}"`).join(", ")}. ` +
+          `the question/capability map references ${String(props.unmatchedQuestionIds.length)} ` +
+            `question ID(s) that do not exist in the dataset currently displayed — ` +
+            `${props.unmatchedQuestionIds.map((id) => `"${id}"`).join(", ")}. ` +
             "Those links are not shown on any question.",
         )
       : undefined,

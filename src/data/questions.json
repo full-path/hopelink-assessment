@@ -6,7 +6,8 @@
       "kind": "ride_provider",
       "aliases": [
         "Hyde Shuttle"
-      ]
+      ],
+      "capabilitySurvey": "returned"
     },
     {
       "id": "northshore-senior-center",
@@ -15,7 +16,8 @@
       "aliases": [
         "Northshore Senior Center",
         "Northshore senior Center"
-      ]
+      ],
+      "capabilitySurvey": "returned"
     },
     {
       "id": "beyond-the-borders",
@@ -24,7 +26,8 @@
       "aliases": [
         "Beyond the Borders",
         "Beyond the borders"
-      ]
+      ],
+      "capabilitySurvey": "returned"
     },
     {
       "id": "access-paratransit",
@@ -33,7 +36,8 @@
       "aliases": [
         "Access Paratransit",
         "Access paratransit"
-      ]
+      ],
+      "capabilitySurvey": "returned"
     },
     {
       "id": "metro-transit-instruction",
@@ -41,7 +45,8 @@
       "kind": "travel_training",
       "aliases": [
         "Metro Transit Instruction"
-      ]
+      ],
+      "capabilitySurvey": "not_surveyed"
     },
     {
       "id": "orca",
@@ -49,7 +54,8 @@
       "kind": "fare_program",
       "aliases": [
         "ORCA"
-      ]
+      ],
+      "capabilitySurvey": "not_surveyed"
     },
     {
       "id": "orca-senior",
@@ -57,7 +63,8 @@
       "kind": "fare_program",
       "aliases": [
         "ORCA (Senior)"
-      ]
+      ],
+      "capabilitySurvey": "not_surveyed"
     },
     {
       "id": "orca-disabled",
@@ -66,7 +73,8 @@
       "aliases": [
         "ORCA (Disabled)",
         "ORCA (disabled)"
-      ]
+      ],
+      "capabilitySurvey": "not_surveyed"
     },
     {
       "id": "orca-lift",
@@ -74,7 +82,8 @@
       "kind": "fare_program",
       "aliases": [
         "ORCA LIFT"
-      ]
+      ],
+      "capabilitySurvey": "not_surveyed"
     },
     {
       "id": "homage-tap",
@@ -83,7 +92,8 @@
       "aliases": [
         "Homage TAP",
         "Homage Tap"
-      ]
+      ],
+      "capabilitySurvey": "returned"
     },
     {
       "id": "sound-generations-vts",
@@ -92,7 +102,8 @@
       "aliases": [
         "Sound Generations VTS",
         "SG VTS"
-      ]
+      ],
+      "capabilitySurvey": "returned"
     },
     {
       "id": "sap",
@@ -100,7 +111,8 @@
       "kind": "fare_program",
       "aliases": [
         "SAP"
-      ]
+      ],
+      "capabilitySurvey": "not_surveyed"
     },
     {
       "id": "snow-goose-transit",
@@ -108,7 +120,8 @@
       "kind": "ride_provider",
       "aliases": [
         "Snow Goose Transit"
-      ]
+      ],
+      "capabilitySurvey": "returned"
     },
     {
       "id": "metroflex",
@@ -116,7 +129,8 @@
       "kind": "ride_provider",
       "aliases": [
         "MetroFlex"
-      ]
+      ],
+      "capabilitySurvey": "not_surveyed"
     },
     {
       "id": "pierce-runner",
@@ -124,7 +138,8 @@
       "kind": "ride_provider",
       "aliases": [
         "Pierce Runner"
-      ]
+      ],
+      "capabilitySurvey": "not_surveyed"
     },
     {
       "id": "zip-shuttle",
@@ -132,7 +147,8 @@
       "kind": "ride_provider",
       "aliases": [
         "Zip Shuttle"
-      ]
+      ],
+      "capabilitySurvey": "returned"
     },
     {
       "id": "community-van",
@@ -140,7 +156,8 @@
       "kind": "ride_provider",
       "aliases": [
         "Community Van"
-      ]
+      ],
+      "capabilitySurvey": "returned"
     }
   ],
   "questions": [
@@ -209,24 +226,48 @@
           "level": "required"
         },
         {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "northshore-senior-center",
           "level": "required"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
         },
         {
           "agencyId": "beyond-the-borders",
           "level": "required"
         },
         {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "access-paratransit",
           "level": "required"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
         },
         {
           "agencyId": "metro-transit-instruction",
           "level": "required"
         },
         {
+          "agencyId": "metro-transit-instruction",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "orca",
           "level": "required"
+        },
+        {
+          "agencyId": "orca",
+          "level": "self_attestation"
         },
         {
           "agencyId": "snow-goose-transit",
@@ -249,45 +290,19 @@
           "level": "optional"
         },
         {
-          "agencyId": "orca",
-          "level": "optional"
-        },
-        {
-          "agencyId": "sap",
-          "level": "optional"
-        },
-        {
-          "agencyId": "hyde-shuttle",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "northshore-senior-center",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "beyond-the-borders",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "access-paratransit",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "metro-transit-instruction",
-          "level": "self_attestation"
-        },
-        {
           "agencyId": "homage-tap",
           "level": "self_attestation"
         },
         {
-          "agencyId": "orca",
-          "level": "self_attestation"
+          "agencyId": "sap",
+          "level": "optional"
         }
       ],
       "upstreamRefs": [],
-      "downstreamRefs": [],
-      "dataQualityNote": "ORCA is listed under both Providers Required and Providers Optional for this question — a direct contradiction as stated. Not altered; requires human resolution."
+      "downstreamRefs": [
+        "preferred-method-of-contact"
+      ],
+      "dataQualityNote": "ORCA is listed under both Providers Required and Providers Optional for this question — a direct contradiction as stated. Not altered; requires human resolution. In the one-row-per-agency layout ORCA's row records Required, the stricter of the two, pending that confirmation."
     },
     {
       "id": "email",
@@ -298,8 +313,16 @@
           "level": "required"
         },
         {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "northshore-senior-center",
           "level": "required"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
         },
         {
           "agencyId": "orca-senior",
@@ -308,6 +331,10 @@
         {
           "agencyId": "beyond-the-borders",
           "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
         },
         {
           "agencyId": "snow-goose-transit",
@@ -328,6 +355,10 @@
         {
           "agencyId": "homage-tap",
           "level": "optional"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
         },
         {
           "agencyId": "orca-disabled",
@@ -342,44 +373,30 @@
           "level": "optional"
         },
         {
+          "agencyId": "metro-transit-instruction",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "access-paratransit",
           "level": "optional"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
         },
         {
           "agencyId": "sap",
           "level": "optional"
         },
         {
-          "agencyId": "hyde-shuttle",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "northshore-senior-center",
-          "level": "self_attestation"
-        },
-        {
           "agencyId": "orca",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "beyond-the-borders",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "homage-tap",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "metro-transit-instruction",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "access-paratransit",
           "level": "self_attestation"
         }
       ],
       "upstreamRefs": [],
-      "downstreamRefs": [],
+      "downstreamRefs": [
+        "preferred-method-of-contact"
+      ],
       "dataQualityNote": "Self-Attestation cell originally listed 'ORCA' twice (one instance with trailing whitespace); duplicate removed. Bare 'ORCA' appears in Self-Attestation but has no corresponding entry in Required or Optional for this question — completeness gap, not resolved here."
     },
     {
@@ -391,6 +408,10 @@
           "level": "required"
         },
         {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "orca-disabled",
           "level": "required"
         },
@@ -399,8 +420,16 @@
           "level": "required"
         },
         {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "access-paratransit",
           "level": "required"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
         },
         {
           "agencyId": "sap",
@@ -415,6 +444,10 @@
           "level": "optional"
         },
         {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "orca-senior",
           "level": "optional"
         },
@@ -423,29 +456,15 @@
           "level": "optional"
         },
         {
-          "agencyId": "hyde-shuttle",
-          "level": "self_attestation"
-        },
-        {
           "agencyId": "orca",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "beyond-the-borders",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "access-paratransit",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "homage-tap",
           "level": "self_attestation"
         }
       ],
       "upstreamRefs": [],
       "downstreamRefs": [
-        "mailing-address-same-as-home-address"
+        "mailing-address-same-as-home-address",
+        "are-you-currently-homeless",
+        "are-you-a-king-county-resident"
       ],
       "dataQualityNote": "Bare 'ORCA' appears in Self-Attestation but not in Required or Optional for this question — same completeness gap as the Email row, not resolved here. Downstream reference now resolves: the 'Mailing address same as home address?' row was added to this sheet."
     },
@@ -453,8 +472,12 @@
       "id": "mailing-address-same-as-home-address",
       "text": "Mailing address same as home address?",
       "requirements": [],
-      "upstreamRefs": [],
-      "downstreamRefs": [],
+      "upstreamRefs": [
+        "home-address"
+      ],
+      "downstreamRefs": [
+        "mailing-address"
+      ],
       "dataQualityNote": "Added deliberately, to by-question.csv and to this sheet, as a question in its own right. The agency survey never asked it — it appeared only as a reference from the Home address and Mailing address rows — so the agency columns are blank rather than inferred: no agency reported a requirement level or proof burden for it. Upstream/Downstream are blank because both neighbours already declare these edges, and this sheet declares each edge from one side only."
     },
     {
@@ -466,6 +489,10 @@
           "level": "required"
         },
         {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "orca-senior",
           "level": "required"
         },
@@ -478,8 +505,16 @@
           "level": "required"
         },
         {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "homage-tap",
           "level": "optional"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
         },
         {
           "agencyId": "orca-disabled",
@@ -490,24 +525,13 @@
           "level": "optional"
         },
         {
-          "agencyId": "northshore-senior-center",
-          "level": "self_attestation"
-        },
-        {
           "agencyId": "orca",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "access-paratransit",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "homage-tap",
           "level": "self_attestation"
         }
       ],
       "upstreamRefs": [
-        "mailing-address-same-as-home-address"
+        "mailing-address-same-as-home-address",
+        "are-you-currently-homeless"
       ],
       "downstreamRefs": [],
       "dataQualityNote": "Bare 'ORCA' in Self-Attestation not present in Required or Optional for this question — completeness gap, not resolved here. Upstream reference now resolves: the 'Mailing address same as home address?' row was added to this sheet."
@@ -521,20 +545,20 @@
           "level": "required"
         },
         {
-          "agencyId": "beyond-the-borders",
-          "level": "required"
-        },
-        {
-          "agencyId": "homage-tap",
-          "level": "optional"
-        },
-        {
           "agencyId": "hyde-shuttle",
           "level": "self_attestation"
         },
         {
           "agencyId": "beyond-the-borders",
+          "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
           "level": "self_attestation"
+        },
+        {
+          "agencyId": "homage-tap",
+          "level": "optional"
         },
         {
           "agencyId": "homage-tap",
@@ -542,7 +566,13 @@
         }
       ],
       "upstreamRefs": [],
-      "downstreamRefs": [],
+      "downstreamRefs": [
+        "do-you-need-an-interpreter",
+        "do-you-require-a-service-animal",
+        "do-you-need-a-companion",
+        "how-many-riders-to-expect",
+        "do-you-require-any-special-assistance-extra-load-time-comfort-pet-etc"
+      ],
       "dataQualityNote": "Typo 'providercapabilities' corrected to 'provider capabilities'. The original cell carried a Downstream reference to 'Which provider capabilities are needed', which is not an intake question but a pointer to provider capability data. It is removed here because that relationship is modelled properly in question-capability-map.csv, which links this question to the six capability columns it is understood to ask about — so the reference was redundant as well as unresolvable."
     },
     {
@@ -558,20 +588,20 @@
           "level": "optional"
         },
         {
-          "agencyId": "northshore-senior-center",
-          "level": "optional"
-        },
-        {
-          "agencyId": "sound-generations-vts",
-          "level": "optional"
-        },
-        {
           "agencyId": "homage-tap",
           "level": "self_attestation"
         },
         {
           "agencyId": "northshore-senior-center",
+          "level": "optional"
+        },
+        {
+          "agencyId": "northshore-senior-center",
           "level": "self_attestation"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "optional"
         },
         {
           "agencyId": "sound-generations-vts",
@@ -590,12 +620,12 @@
           "level": "required"
         },
         {
-          "agencyId": "northshore-senior-center",
-          "level": "optional"
-        },
-        {
           "agencyId": "hyde-shuttle",
           "level": "self_attestation"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "optional"
         },
         {
           "agencyId": "northshore-senior-center",
@@ -616,28 +646,28 @@
           "level": "required"
         },
         {
-          "agencyId": "northshore-senior-center",
-          "level": "optional"
-        },
-        {
-          "agencyId": "orca-lift",
-          "level": "optional"
-        },
-        {
-          "agencyId": "sap",
-          "level": "optional"
-        },
-        {
           "agencyId": "hyde-shuttle",
           "level": "self_attestation"
         },
         {
           "agencyId": "northshore-senior-center",
+          "level": "optional"
+        },
+        {
+          "agencyId": "northshore-senior-center",
           "level": "self_attestation"
         },
         {
           "agencyId": "orca-lift",
+          "level": "optional"
+        },
+        {
+          "agencyId": "orca-lift",
           "level": "self_attestation"
+        },
+        {
+          "agencyId": "sap",
+          "level": "optional"
         }
       ],
       "upstreamRefs": [
@@ -654,12 +684,24 @@
           "level": "required"
         },
         {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "access-paratransit",
           "level": "required"
         },
         {
+          "agencyId": "access-paratransit",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "orca-lift",
           "level": "required"
+        },
+        {
+          "agencyId": "orca-lift",
+          "level": "self_attestation"
         },
         {
           "agencyId": "sound-generations-vts",
@@ -674,32 +716,22 @@
           "level": "optional"
         },
         {
-          "agencyId": "metro-transit-instruction",
-          "level": "optional"
-        },
-        {
-          "agencyId": "hyde-shuttle",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "access-paratransit",
-          "level": "self_attestation"
-        },
-        {
           "agencyId": "homage-tap",
           "level": "self_attestation"
         },
         {
           "agencyId": "metro-transit-instruction",
-          "level": "self_attestation"
+          "level": "optional"
         },
         {
-          "agencyId": "orca-lift",
+          "agencyId": "metro-transit-instruction",
           "level": "self_attestation"
         }
       ],
       "upstreamRefs": [],
-      "downstreamRefs": []
+      "downstreamRefs": [
+        "do-you-need-an-interpreter"
+      ]
     },
     {
       "id": "veteran-status",
@@ -710,28 +742,28 @@
           "level": "required"
         },
         {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "homage-tap",
           "level": "optional"
         },
         {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "northshore-senior-center",
           "level": "optional"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "self_attestation"
         },
         {
           "agencyId": "sound-generations-vts",
           "level": "optional"
-        },
-        {
-          "agencyId": "homage-tap",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "northshore-senior-center",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "beyond-the-borders",
-          "level": "self_attestation"
         }
       ],
       "upstreamRefs": [],
@@ -747,12 +779,20 @@
           "level": "required"
         },
         {
+          "agencyId": "homage-tap",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "orca-lift",
           "level": "required"
         },
         {
           "agencyId": "beyond-the-borders",
           "level": "required"
+        },
+        {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
         },
         {
           "agencyId": "sound-generations-vts",
@@ -763,15 +803,7 @@
           "level": "optional"
         },
         {
-          "agencyId": "homage-tap",
-          "level": "self_attestation"
-        },
-        {
           "agencyId": "hyde-shuttle",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "beyond-the-borders",
           "level": "self_attestation"
         },
         {
@@ -793,12 +825,25 @@
           "level": "required"
         },
         {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "hyde-shuttle",
           "level": "required"
         },
         {
+          "agencyId": "hyde-shuttle",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "orca",
           "level": "required"
+        },
+        {
+          "agencyId": "orca",
+          "level": "proof_required",
+          "proofDetail": "Photo ID"
         },
         {
           "agencyId": "sap",
@@ -815,19 +860,6 @@
         {
           "agencyId": "homage-tap",
           "level": "self_attestation"
-        },
-        {
-          "agencyId": "beyond-the-borders",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "hyde-shuttle",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "orca",
-          "level": "proof_required",
-          "proofDetail": "Photo ID"
         }
       ],
       "upstreamRefs": [],
@@ -846,12 +878,26 @@
           "level": "required"
         },
         {
+          "agencyId": "orca",
+          "level": "proof_required",
+          "proofDetail": "State or federal documentation"
+        },
+        {
           "agencyId": "beyond-the-borders",
           "level": "required"
         },
         {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "access-paratransit",
           "level": "required"
+        },
+        {
+          "agencyId": "access-paratransit",
+          "level": "proof_required",
+          "proofDetail": "signed note from doctor and in-person evaluation"
         },
         {
           "agencyId": "snow-goose-transit",
@@ -864,25 +910,12 @@
         {
           "agencyId": "homage-tap",
           "level": "self_attestation"
-        },
-        {
-          "agencyId": "beyond-the-borders",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "orca",
-          "level": "proof_required",
-          "proofDetail": "State or federal documentation"
-        },
-        {
-          "agencyId": "access-paratransit",
-          "level": "proof_required",
-          "proofDetail": "signed note from doctor and in-person evaluation"
         }
       ],
       "upstreamRefs": [],
       "downstreamRefs": [
-        "is-the-disability-temporary-or-permanent"
+        "is-the-disability-temporary-or-permanent",
+        "do-you-have-hearing-issues-or-sight-issues"
       ],
       "dataQualityNote": "Proof segments were comma-delimited in the source, which is ambiguous against the commas inside proof text; re-delimited with ';'. Downstream reference corrected from 'Temporary or permanent disability?' to match the exact text of the corresponding Question row."
     },
@@ -962,7 +995,10 @@
           "proofDetail": "Type number into textbox"
         }
       ],
-      "upstreamRefs": [],
+      "upstreamRefs": [
+        "selection-of-benefits-program",
+        "benefits-id-number"
+      ],
       "downstreamRefs": [],
       "dataQualityNote": "Homage TAP appears under both Optional and Burden of Proof. The described 'proof' (typing a number into a textbox) is applicant self-report, not third-party documentary evidence, and arguably belongs under Self-Attestation. Not moved; flagged for confirmation. The SAP rows 'Selection of benefits program' and 'Benefits ID Number' name this question as downstream, but no reciprocal upstream link is recorded here."
     },
@@ -996,16 +1032,32 @@
           "level": "required"
         },
         {
+          "agencyId": "orca-lift",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "orca-disabled",
           "level": "required"
+        },
+        {
+          "agencyId": "orca-disabled",
+          "level": "self_attestation"
         },
         {
           "agencyId": "beyond-the-borders",
           "level": "required"
         },
         {
+          "agencyId": "beyond-the-borders",
+          "level": "self_attestation"
+        },
+        {
           "agencyId": "sound-generations-vts",
           "level": "required"
+        },
+        {
+          "agencyId": "sound-generations-vts",
+          "level": "self_attestation"
         },
         {
           "agencyId": "sap",
@@ -1016,23 +1068,7 @@
           "level": "optional"
         },
         {
-          "agencyId": "orca-lift",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "orca-disabled",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "beyond-the-borders",
-          "level": "self_attestation"
-        },
-        {
           "agencyId": "metro-transit-instruction",
-          "level": "self_attestation"
-        },
-        {
-          "agencyId": "sound-generations-vts",
           "level": "self_attestation"
         }
       ],
@@ -1040,7 +1076,9 @@
         "phone",
         "email"
       ],
-      "downstreamRefs": [],
+      "downstreamRefs": [
+        "may-we-leave-a-message"
+      ],
       "dataQualityNote": "Upstream cell held two comma-separated references ('Phone number, email'); re-delimited with ';' and matched to the 'Phone' and 'Email' Question rows. 'Phone number' is a paraphrase of 'Phone' — match assumed, not stated in the source."
     },
     {
@@ -1167,12 +1205,12 @@
           "level": "optional"
         },
         {
-          "agencyId": "northshore-senior-center",
-          "level": "optional"
-        },
-        {
           "agencyId": "sound-generations-vts",
           "level": "self_attestation"
+        },
+        {
+          "agencyId": "northshore-senior-center",
+          "level": "optional"
         }
       ],
       "upstreamRefs": [],

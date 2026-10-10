@@ -1,10 +1,13 @@
-﻿Agency Name,Allows for companions,Wheelchair Accessible,Power Wheelchair Accessible,Walker (Folding),Walker (nonfolding),Portable Oxygen,Allows service animals,Door-to-door,Curb-to-curb,Interpretation Support,Lift,Ramp
-Community Van,Yes,Yes,,Yes,Yes,Probably yes,Yes,No,Yes,No,No,Yes
-Homage TAP,,,,,,,,,,,,
-Hyde Shuttle,Yes (1),Yes,Yes,Yes,Yes,Yes,Yes,No,Yes,Yes (Language line),Yes,
-SG VTS,Yes,Depends on vehicle,Depends on vehicle,Depends on vehicle,Depends on vehicle,Depends on vehicle,Yes,no,yes,,no,
-Zip Shuttle,,Yes,,Yes,Yes,,Yes,,Yes,,,
-Northshore Senior Center,,,,,,,,,,,,
-Beyond the Borders,,,,,,,,,,,,
-Snow Goose Transit,Yes,Yes,Yes,Yes,Yes,,Yes,,Yes,,Yes,
-Access Paratransit,Yes,Yes,,,,,Yes,,Yes,,,
+ID,Label
+allows-for-companions,Allows for companions
+wheelchair-accessible,Wheelchair Accessible
+power-wheelchair-accessible,Power Wheelchair Accessible
+walker-folding,Walker (Folding)
+walker-nonfolding,Walker (nonfolding)
+portable-oxygen,Portable Oxygen
+allows-service-animals,Allows service animals
+door-to-door,Door-to-door
+curb-to-curb,Curb-to-curb
+interpretation-support,Interpretation Support
+lift,Lift
+ramp,Ramp

@@ -1,7 +1,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalizeDataset } from "../src/data/dataset";
+import {
+  normalizeDataset,
+  SOURCE_FILES,
+  SOURCE_ROLES,
+  type SourceTexts,
+} from "../src/data/dataset";
 import { resolveQuestionCapabilityLinks } from "../src/data/normalizeCapabilities";
 
 // Thin CLI wrapper around the shared normalization modules (via src/data/dataset.ts): reads the
@@ -13,12 +18,10 @@ const dataFile = (name: string) => resolve(__dirname, "../data", name);
 const outputFile = (name: string) => resolve(__dirname, "../src/data", name);
 
 function main(): void {
-  const { data, capabilities } = normalizeDataset({
-    agencies: readFileSync(dataFile("agencies.csv"), "utf-8"),
-    questions: readFileSync(dataFile("eligibility-questions.csv"), "utf-8"),
-    capabilities: readFileSync(dataFile("capabilities.csv"), "utf-8"),
-    capabilityMap: readFileSync(dataFile("question-capability-map.csv"), "utf-8"),
-  });
+  const sources = Object.fromEntries(
+    SOURCE_ROLES.map((role) => [role, readFileSync(dataFile(SOURCE_FILES[role]), "utf-8")]),
+  ) as Record<keyof SourceTexts, string>;
+  const { data, capabilities } = normalizeDataset(sources);
 
   writeFileSync(outputFile("questions.json"), JSON.stringify(data, null, 2) + "\n");
   console.log(
@@ -37,10 +40,10 @@ function main(): void {
   // notice, but not fatally: the map is allowed to lag a CSV edit by one commit.
   const { unmatched } = resolveQuestionCapabilityLinks(capabilities.questionLinks, data.questions);
   if (unmatched.length > 0) {
-    const list = [...new Set(unmatched.map((link) => link.questionText))];
+    const list = [...new Set(unmatched.map((link) => link.questionId))];
     console.warn(
       `WARNING: ${String(unmatched.length)} question/capability link(s) match no question in ` +
-        `eligibility-questions.csv and will not be shown:\n` +
+        `questions.csv and will not be shown:\n` +
         list.map((text) => `  - "${text}"`).join("\n"),
     );
   }

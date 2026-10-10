@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SOURCE_FILES, SOURCE_ROLES, type SourceTexts } from "./data/dataset";
+import type { SheetTabs } from "./sheetSource";
 
 /**
  * A smoke test for the whole page, against the real committed dataset.
@@ -472,8 +474,14 @@ describe("app render", () => {
     expect(card?.querySelector(".capability-panel")).not.toBeNull();
     expect(card?.querySelectorAll(".capability-table tbody tr").length).toBe(6);
     expect(card?.querySelector(".capability-panel .badge--candidate")).not.toBeNull();
-    // No "Upstream / downstream" block at all now: it has no links in either direction.
-    expect(card?.querySelector(".links")).toBeNull();
+    // The dangling reference is gone: nothing unresolved. What remains are the links other
+    // questions declare to it, which the Question links tab now shows from both ends.
+    expect(card?.querySelector(".link-item--unresolved")).toBeNull();
+    const downstream = [...(card?.querySelectorAll(".link-item--resolved a") ?? [])].map((a) =>
+      a.getAttribute("href"),
+    );
+    expect(downstream).toContain("#question-do-you-need-an-interpreter");
+    expect(downstream).toHaveLength(5);
   });
 
   function boxes(app: HTMLElement, questionId: string): HTMLElement[] {
@@ -674,7 +682,7 @@ describe("app render", () => {
 
     expect(app.querySelector(".data-source")).toBeNull();
     expect(app.querySelector("#data-source-file")).toBeNull();
-    expect(app.textContent).not.toContain("Preview a replacement CSV");
+    expect(app.textContent).not.toContain("Preview replacement CSVs");
     // The rest of the page is unaffected.
     expect(app.querySelectorAll(".question-card").length).toBeGreaterThan(20);
     expect(app.querySelector('[role="tablist"]')).not.toBeNull();
@@ -688,7 +696,7 @@ describe("app render", () => {
 
     expect(app.querySelector(".data-source")).not.toBeNull();
     expect(app.querySelector<HTMLInputElement>("#data-source-file")?.type).toBe("file");
-    expect(app.textContent).toContain("Preview a replacement CSV");
+    expect(app.textContent).toContain("Preview replacement CSVs");
   });
 
   it("puts the agency strip last in every header so the boxes form a column", async () => {
@@ -739,39 +747,32 @@ describe("app render", () => {
 
 describe("live sheet", () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf-8");
-  const TABS = {
-    VITE_SHEET_AGENCIES_CSV_URL: ["https://sheet.test/agencies", read("../data/agencies.csv")],
-    VITE_SHEET_QUESTIONS_CSV_URL: [
-      "https://sheet.test/questions",
-      read("../data/eligibility-questions.csv"),
-    ],
-    VITE_SHEET_CAPABILITIES_CSV_URL: [
-      "https://sheet.test/capabilities",
-      read("../data/capabilities.csv"),
-    ],
-    VITE_SHEET_CAPABILITY_MAP_CSV_URL: [
-      "https://sheet.test/map",
-      read("../data/question-capability-map.csv"),
-    ],
-  } as const;
-  const ADDED_QUESTION = "Do you travel with a bicycle\n";
+  const PUBLISHED = "https://docs.google.com/spreadsheets/d/e/2PACX-test/pub";
+  /** Each role's tab, wired to a gid; the committed src/sheetTabs.ts has none until a sheet exists. */
+  const WIRED = Object.fromEntries(
+    SOURCE_ROLES.map((role, gid) => [role, { name: role, gid }]),
+  ) as SheetTabs;
+  const urlFor = (role: keyof SourceTexts) =>
+    `${PUBLISHED}?gid=${String(WIRED[role].gid)}&single=true&output=csv`;
+  const COMMITTED = Object.fromEntries(
+    SOURCE_ROLES.map((role) => [role, read(`../data/${SOURCE_FILES[role]}`)]),
+  ) as Record<keyof SourceTexts, string>;
 
   /**
    * Mounts the app with the sheet configured and its fetches held until `release()`, so a test
    * can put the page into a given state (a card open, say) before the sheet answers — which is
-   * the window the swap logic exists to handle.
+   * the window the swap logic exists to handle. `overrides` replaces individual tabs.
    */
-  async function mountWithSheet(questionsCsv?: string) {
+  async function mountWithSheet(overrides: Partial<Record<keyof SourceTexts, string>> = {}) {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const bodies = new Map<string, string>();
-    for (const [name, [url, body]] of Object.entries(TABS)) {
-      vi.stubEnv(name, url);
-      bodies.set(url, body);
-    }
-    if (questionsCsv !== undefined) bodies.set(TABS.VITE_SHEET_QUESTIONS_CSV_URL[0], questionsCsv);
+    vi.stubEnv("VITE_SHEET_PUBLISHED_URL", PUBLISHED);
+    vi.doMock("./sheetTabs", () => ({ SHEET_TABS: WIRED }));
+    const bodies = new Map(
+      SOURCE_ROLES.map((role) => [urlFor(role), overrides[role] ?? COMMITTED[role]]),
+    );
 
     const fetchMock = vi.fn(async (url: string) => {
       await gate;
@@ -784,12 +785,14 @@ describe("live sheet", () => {
   }
 
   const statusText = (app: HTMLElement) => app.querySelector(".sheet-status")?.textContent ?? "";
-  const withAddedQuestion = () =>
-    `${TABS.VITE_SHEET_QUESTIONS_CSV_URL[1]}${ADDED_QUESTION.trim()},Hyde Shuttle,,,,,,\n`;
+  const withAddedQuestion = () => ({
+    questions: `${COMMITTED.questions}do-you-travel-with-a-bicycle,Do you travel with a bicycle,\n`,
+  });
 
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    vi.doUnmock("./sheetTabs");
   });
 
   it("makes no request and shows no status line when no sheet is configured", async () => {
@@ -851,8 +854,9 @@ describe("live sheet", () => {
   });
 
   it("keeps the snapshot and says why when the sheet is invalid", async () => {
-    const invalid = `${TABS.VITE_SHEET_QUESTIONS_CSV_URL[1]}A question,Unlisted Agency,,,,,,\n`;
-    const { app, release } = await mountWithSheet(invalid);
+    const { app, release } = await mountWithSheet({
+      requirements: `${COMMITTED.requirements}phone,Unlisted Agency,Required,,\n`,
+    });
     const before = app.querySelectorAll(".question-card").length;
 
     release();
@@ -863,8 +867,45 @@ describe("live sheet", () => {
     expect(app.querySelectorAll(".question-card").length).toBe(before);
   });
 
+  it("keeps a comment attached when its question is reworded in the sheet", async () => {
+    // Question ids are assigned in the sheet rather than derived from the text, so rewording a
+    // question no longer orphans the discussion about it.
+    vi.stubEnv("VITE_COMMENTS_ENDPOINT", "https://example.test/exec");
+    vi.stubEnv("VITE_SHEET_PUBLISHED_URL", PUBLISHED);
+    vi.doMock("./sheetTabs", () => ({ SHEET_TABS: WIRED }));
+    const questions = COMMITTED.questions.replace(/^phone,Phone,/m, "phone,Telephone number,");
+    const bodies = new Map(
+      SOURCE_ROLES.map((role) => [
+        urlFor(role),
+        role === "questions" ? questions : COMMITTED[role],
+      ]),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        Promise.resolve(
+          bodies.has(url)
+            ? new Response(bodies.get(url))
+            : new Response(JSON.stringify({ comments: [stubComment()] })),
+        ),
+      ),
+    );
+
+    const app = await mountApp();
+    await vi.waitFor(() => {
+      expect(app.querySelector("#question-phone .question-card__text")?.textContent).toBe(
+        "Telephone number",
+      );
+    });
+    await vi.waitFor(() => {
+      expect(app.querySelector("#question-phone .comment__body")).not.toBeNull();
+    });
+    expect(app.querySelector(".comment--orphaned")).toBeNull();
+  });
+
   it("reports a partly configured sheet without fetching any of it", async () => {
-    vi.stubEnv("VITE_SHEET_AGENCIES_CSV_URL", "https://sheet.test/agencies");
+    // A published URL, but the committed src/sheetTabs.ts has no gids yet.
+    vi.stubEnv("VITE_SHEET_PUBLISHED_URL", PUBLISHED);
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const app = await mountApp();

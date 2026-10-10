@@ -1,0 +1,50 @@
+Agency,Capability ID,Answer,Agency's wording
+Community Van,allows-for-companions,Yes,
+Community Van,wheelchair-accessible,Yes,
+Community Van,walker-folding,Yes,
+Community Van,walker-nonfolding,Yes,
+Community Van,portable-oxygen,Conditional,Probably yes
+Community Van,allows-service-animals,Yes,
+Community Van,door-to-door,No,
+Community Van,curb-to-curb,Yes,
+Community Van,interpretation-support,No,
+Community Van,lift,No,
+Community Van,ramp,Yes,
+Hyde Shuttle,allows-for-companions,Yes,1
+Hyde Shuttle,wheelchair-accessible,Yes,
+Hyde Shuttle,power-wheelchair-accessible,Yes,
+Hyde Shuttle,walker-folding,Yes,
+Hyde Shuttle,walker-nonfolding,Yes,
+Hyde Shuttle,portable-oxygen,Yes,
+Hyde Shuttle,allows-service-animals,Yes,
+Hyde Shuttle,door-to-door,No,
+Hyde Shuttle,curb-to-curb,Yes,
+Hyde Shuttle,interpretation-support,Yes,Language line
+Hyde Shuttle,lift,Yes,
+Sound Generations VTS,allows-for-companions,Yes,
+Sound Generations VTS,wheelchair-accessible,Conditional,Depends on vehicle
+Sound Generations VTS,power-wheelchair-accessible,Conditional,Depends on vehicle
+Sound Generations VTS,walker-folding,Conditional,Depends on vehicle
+Sound Generations VTS,walker-nonfolding,Conditional,Depends on vehicle
+Sound Generations VTS,portable-oxygen,Conditional,Depends on vehicle
+Sound Generations VTS,allows-service-animals,Yes,
+Sound Generations VTS,door-to-door,No,
+Sound Generations VTS,curb-to-curb,Yes,
+Sound Generations VTS,lift,No,
+Zip Shuttle,wheelchair-accessible,Yes,
+Zip Shuttle,walker-folding,Yes,
+Zip Shuttle,walker-nonfolding,Yes,
+Zip Shuttle,allows-service-animals,Yes,
+Zip Shuttle,curb-to-curb,Yes,
+Snow Goose Transit,allows-for-companions,Yes,
+Snow Goose Transit,wheelchair-accessible,Yes,
+Snow Goose Transit,power-wheelchair-accessible,Yes,
+Snow Goose Transit,walker-folding,Yes,
+Snow Goose Transit,walker-nonfolding,Yes,
+Snow Goose Transit,allows-service-animals,Yes,
+Snow Goose Transit,curb-to-curb,Yes,
+Snow Goose Transit,lift,Yes,
+Access Paratransit,allows-for-companions,Yes,
+Access Paratransit,wheelchair-accessible,Yes,
+Access Paratransit,allows-service-animals,Yes,
+Access Paratransit,curb-to-curb,Yes,

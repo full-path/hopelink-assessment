@@ -7,7 +7,7 @@ export interface AgencyRequirement {
 }
 
 export interface IntakeQuestion {
-  id: string; // stable slug generated from question text
+  id: string; // assigned once in the Questions tab and never edited, so rewording keeps it
   text: string;
   requirements: AgencyRequirement[];
   upstreamRefs: string[]; // resolved question ids; empty array if unresolved/unmatched
@@ -19,7 +19,7 @@ export interface IntakeQuestion {
 /**
  * What sort of entity an agency is. The intake sheet lists vehicle operators and fare/pass
  * programs side by side, but only the former can have vehicle capabilities — see the comment
- * on CANONICAL_AGENCIES in `agencies.ts`.
+ * at the top of `agencies.ts`.
  */
 export type AgencyKind = "ride_provider" | "fare_program" | "travel_training";
 
@@ -28,6 +28,13 @@ export interface Agency {
   displayName: string;
   kind: AgencyKind;
   aliases: string[]; // raw strings from source CSVs mapped to this agency
+  /**
+   * Whether the agency returned the capability survey. Stated in the roster rather than
+   * inferred from the capability answers, because "returned it blank" and "never surveyed" look
+   * identical in a tab that only lists answers, and the capabilities view reports them
+   * differently.
+   */
+  capabilitySurvey: "returned" | "not_surveyed";
 }
 
 export interface NormalizedData {
@@ -59,9 +66,10 @@ export interface AgencyCapability {
 }
 
 /**
- * One row of `data/capabilities.csv`. An agency with no row at all has no profile — that is a
- * different fact from a profile whose values are all "unknown" (surveyed, returned nothing),
- * and the coverage view reports the two separately.
+ * One agency's capability answers. Only agencies whose roster row says they returned the survey
+ * have a profile; an agency that was never surveyed has none. That is a different fact from a
+ * profile whose values are all "unknown" (surveyed, returned nothing), and the coverage view
+ * reports the two separately.
  */
 export interface AgencyCapabilityProfile {
   agencyId: string;
@@ -70,12 +78,12 @@ export interface AgencyCapabilityProfile {
 
 /**
  * An editorial claim, from `data/question-capability-map.csv`, that an intake question exists in
- * order to determine a given provider capability. Not derivable from either CSV — a human
- * asserts it, and `note` records why. Stored against question *text* rather than id so it can be
- * re-resolved against an uploaded question set at runtime.
+ * order to determine a given provider capability. Not derivable from the other tabs — a human
+ * asserts it, and `note` records why. Resolved against the displayed question set at runtime, so
+ * an uploaded preview that drops a question reports the link as unmatched rather than breaking.
  */
 export interface QuestionCapabilityLink {
-  questionText: string;
+  questionId: string;
   capabilityId: string;
   note?: string;
 }

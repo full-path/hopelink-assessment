@@ -1,18 +1,18 @@
-Agency,Kind,Aliases,Note
-Hyde Shuttle,Ride provider,,
-Northshore Senior Center,Ride provider,Northshore senior Center,
-Beyond the Borders,Ride provider,Beyond the borders,
-Access Paratransit,Ride provider,Access paratransit,
-Metro Transit Instruction,Travel training,,"Classified as travel training, not a ride provider, so vehicle capabilities are reported as not applicable. An assumption: see CLAUDE.md Section 11, item 9."
-ORCA,Fare program,,"ORCA and its variants are kept as distinct programs rather than merged (CLAUDE.md Section 11, item 1), and classified as fare programs (item 9)."
-ORCA (Senior),Fare program,,See note on the ORCA row.
-ORCA (Disabled),Fare program,ORCA (disabled),See note on the ORCA row.
-ORCA LIFT,Fare program,,See note on the ORCA row.
-Homage TAP,Ride provider,Homage Tap,
-Sound Generations VTS,Ride provider,SG VTS,"""SG VTS"" is the spelling the capabilities sheet uses."
-SAP,Fare program,,"Carried as its bare acronym because the source never expands it (CLAUDE.md Section 11, item 6). Classified as a fare program (item 9)."
-Snow Goose Transit,Ride provider,,
-MetroFlex,Ride provider,,
-Pierce Runner,Ride provider,,
-Zip Shuttle,Ride provider,,
-Community Van,Ride provider,,"Appears only in the capabilities sheet: it reports vehicle capabilities but asks no intake questions. Views that list agencies per question leave it out rather than showing it as ""does not ask"" everywhere (CLAUDE.md Section 11, item 8)."
+Agency,Kind,Aliases,Capability survey,Note
+Hyde Shuttle,Ride provider,,Returned,
+Northshore Senior Center,Ride provider,Northshore senior Center,Returned,
+Beyond the Borders,Ride provider,Beyond the borders,Returned,
+Access Paratransit,Ride provider,Access paratransit,Returned,
+Metro Transit Instruction,Travel training,,,"Classified as travel training, not a ride provider, so vehicle capabilities are reported as not applicable. An assumption: see CLAUDE.md Section 11, item 9."
+ORCA,Fare program,,,"ORCA and its variants are kept as distinct programs rather than merged (CLAUDE.md Section 11, item 1), and classified as fare programs (item 9)."
+ORCA (Senior),Fare program,,,See note on the ORCA row.
+ORCA (Disabled),Fare program,ORCA (disabled),,See note on the ORCA row.
+ORCA LIFT,Fare program,,,See note on the ORCA row.
+Homage TAP,Ride provider,Homage Tap,Returned,
+Sound Generations VTS,Ride provider,SG VTS,Returned,"""SG VTS"" is the spelling the capabilities sheet uses."
+SAP,Fare program,,,"Carried as its bare acronym because the source never expands it (CLAUDE.md Section 11, item 6). Classified as a fare program (item 9)."
+Snow Goose Transit,Ride provider,,Returned,
+MetroFlex,Ride provider,,,
+Pierce Runner,Ride provider,,,
+Zip Shuttle,Ride provider,,Returned,
+Community Van,Ride provider,,Returned,"Appears only in the capabilities sheet: it reports vehicle capabilities but asks no intake questions. Views that list agencies per question leave it out rather than showing it as ""does not ask"" everywhere (CLAUDE.md Section 11, item 8)."

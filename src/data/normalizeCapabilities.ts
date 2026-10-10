@@ -1,4 +1,3 @@
-import Papa from "papaparse";
 import type {
   Agency,
   AgencyCapability,
@@ -9,264 +8,187 @@ import type {
   IntakeQuestion,
   QuestionCapabilityLink,
 } from "./types";
-import { createAgencyResolver, type AgencyResolver } from "./agencies";
-import { normalizeWhitespace, slugify } from "./text";
+import { createAgencyResolver } from "./agencies";
+import { cell, dropdown, ID_PATTERN, parseTab } from "./tabs";
 
 /**
- * `data/capabilities.csv` + `data/question-capability-map.csv` → CapabilityData.
+ * The capability tabs — Capabilities, Provider capabilities, Question-capability map — →
+ * CapabilityData.
  *
  * Sibling of `normalize.ts`, following the same rules: one shared module, no Node imports (it
  * runs in the browser too), strict about anything it cannot resolve. Between them they share
- * only the agency roster (`agencies.ts`) and string helpers (`text.ts`).
+ * only the agency roster (`agencies.ts`) and the tab helpers (`tabs.ts`).
  *
- * The capabilities sheet is a matrix: one row per agency, one column per capability, free-text
- * answers. Nothing here coerces a blank into a "no" — see the `CapabilityValue` docs in
- * `types.ts` for why that distinction is load-bearing.
+ * Answers are long-form: one row per (agency, capability) the agency answered. A missing row is
+ * `unknown`, never `no` — see the `CapabilityValue` docs in `types.ts` for why that distinction
+ * is load-bearing. Which agencies have a profile at all comes from the roster's
+ * `Capability survey` column, not from which agencies happen to have answer rows.
  */
 
-/** The one column of `capabilities.csv` that is not a capability. */
-const AGENCY_COLUMN = "Agency Name";
-
-/** Captures a trailing parenthetical qualifier, e.g. `Yes (Language line)` → `Yes` + `Language line`. */
-const QUALIFIER_PATTERN = /^(.*?)\s*\(([^)]*)\)\s*$/;
-
-export interface ParsedCapabilityValue {
-  value: CapabilityValue;
-  qualifier?: string;
+/** The three capability tabs as raw CSV text. */
+export interface CapabilitySourceTexts {
+  capabilities: string;
+  providerCapabilities: string;
+  capabilityMap: string;
 }
 
-/**
- * Maps one free-text capability cell to the canonical vocabulary.
- *
- * A bare "yes"/"no" (in any casing) is taken at face value. Everything else that isn't blank —
- * "Probably yes", "Depends on vehicle" — is `conditional`, because a hedged answer is not the
- * same claim as an unqualified one and flattening it would overstate what the agency said. In
- * every case the agency's own wording is preserved in `qualifier`.
- */
-export function parseCapabilityValue(raw: string): ParsedCapabilityValue {
-  const text = normalizeWhitespace(raw);
-  if (!text) {
-    return { value: "unknown" };
-  }
-
-  const match = QUALIFIER_PATTERN.exec(text);
-  const base = match ? normalizeWhitespace(match[1] ?? "") : text;
-  const parenthetical = match ? normalizeWhitespace(match[2] ?? "") : "";
-
-  const canonical = base.toLowerCase();
-  if (canonical === "yes" || canonical === "no") {
-    const value: CapabilityValue = canonical === "yes" ? "yes" : "no";
-    return parenthetical ? { value, qualifier: parenthetical } : { value };
-  }
-
-  // Anything else is a hedge or a condition; keep the whole phrase as the qualifier so the
-  // UI can show what the agency actually wrote rather than a lossy summary of it.
-  return { value: "conditional", qualifier: text };
-}
+const CAPABILITIES_COLUMNS = ["ID", "Label"];
+const ANSWERS_COLUMNS = ["Agency", "Capability ID", "Answer", "Agency's wording"];
+const MAP_COLUMNS = ["Question ID", "Capability ID"];
 
 /**
- * Parses the matrix as raw rows rather than in papaparse's header mode. Header mode renames a
- * blank header cell to `_1`, `_2`, … — and a spreadsheet tab readily carries trailing empty
- * columns — which would turn an empty column into a phantom capability. Working by position lets
- * a blank-headed column be dropped when it is empty and rejected when it holds answers.
+ * The Answer dropdown. "Conditional" covers every hedged answer — "Probably yes", "Depends on
+ * vehicle" — because a hedge is not the same claim as an unqualified yes, and flattening it
+ * would overstate what the agency said; the hedge itself goes in "Agency's wording".
  */
-function parseMatrixCsv(
-  csvText: string,
-  resolveAgencyId: AgencyResolver,
-): {
-  capabilities: Capability[];
-  profiles: AgencyCapabilityProfile[];
-} {
-  const result = Papa.parse<string[]>(csvText, { header: false, skipEmptyLines: true });
-  if (result.errors.length > 0) {
-    const details = result.errors
-      .map((e) => `${e.type}: ${e.message} (row ${String(e.row)})`)
-      .join("\n");
-    throw new Error(`Capabilities CSV parse errors:\n${details}`);
-  }
+const ANSWER = {
+  Yes: "yes",
+  No: "no",
+  Conditional: "conditional",
+} as const satisfies Record<string, CapabilityValue>;
 
-  const [headerRow = [], ...rows] = result.data;
-  // A UTF-8 byte-order mark survives into the first header cell; it is not part of the name.
-  const header = headerRow.map((cell) => normalizeWhitespace(cell.replace(/^\uFEFF/, "")));
-  if (header[0] !== AGENCY_COLUMN) {
-    throw new Error(
-      `Capabilities CSV must start with an "${AGENCY_COLUMN}" column. Found: ` +
-        header.map((c) => `"${c}"`).join(", "),
-    );
-  }
-
-  const capabilityColumns: { index: number; label: string }[] = [];
-  header.forEach((label, index) => {
-    if (index === 0) return;
-    if (label) {
-      capabilityColumns.push({ index, label });
-      return;
-    }
-    const answered = rows.find((row) => normalizeWhitespace(row[index] ?? "").length > 0);
-    if (answered) {
+function parseCapabilities(csvText: string): Capability[] {
+  const capabilities: Capability[] = [];
+  const seen = new Set<string>();
+  parseTab(csvText, "Capabilities", CAPABILITIES_COLUMNS).forEach((row, index) => {
+    const where = `Capabilities tab, row ${String(index + 2)}`;
+    const id = cell(row, "ID");
+    const label = cell(row, "Label");
+    if (!ID_PATTERN.test(id)) {
       throw new Error(
-        `Capabilities CSV column ${String(index + 1)} has answers but no capability name in ` +
-          `its header (first answer: "${answered[index] ?? ""}" for "${answered[0] ?? ""}").`,
+        `${where}: ID "${id}" must be lowercase words joined by hyphens, e.g. "wheelchair-accessible".`,
       );
     }
+    if (!label) throw new Error(`${where}: capability "${id}" has no label.`);
+    if (seen.has(id)) throw new Error(`${where}: duplicate capability ID "${id}".`);
+    seen.add(id);
+    capabilities.push({ id, label });
   });
-  if (capabilityColumns.length === 0) {
-    throw new Error(`Capabilities CSV has an "${AGENCY_COLUMN}" column but no capability columns.`);
-  }
+  if (capabilities.length === 0) throw new Error("Capabilities tab has no capabilities.");
+  return capabilities;
+}
 
-  const capabilities: Capability[] = capabilityColumns.map(({ label }) => ({
-    id: slugify(label),
-    label,
-  }));
+function parseProfiles(
+  csvText: string,
+  capabilities: Capability[],
+  agencies: Agency[],
+): AgencyCapabilityProfile[] {
+  const resolveAgencyId = createAgencyResolver(agencies);
+  const capabilityIds = new Set(capabilities.map((c) => c.id));
+  const surveyed = new Set(
+    agencies.filter((a) => a.capabilitySurvey === "returned").map((a) => a.id),
+  );
+  const answers = new Map<string, Map<string, AgencyCapability>>();
 
-  const seenIds = new Set<string>();
-  for (const capability of capabilities) {
-    if (seenIds.has(capability.id)) {
+  parseTab(csvText, "Provider capabilities", ANSWERS_COLUMNS).forEach((row, index) => {
+    const where = `Provider capabilities tab, row ${String(index + 2)}`;
+    const agencyName = cell(row, "Agency");
+    const agencyId = resolveAgencyId(agencyName);
+    if (!surveyed.has(agencyId)) {
       throw new Error(
-        `Duplicate capability id "${capability.id}" from column "${capability.label}"`,
+        `${where}: "${agencyName}" has an answer, but the Agencies tab does not mark its ` +
+          `Capability survey as Returned.`,
       );
     }
-    seenIds.add(capability.id);
-  }
-
-  const seenAgencies = new Set<string>();
-  const profiles: AgencyCapabilityProfile[] = [];
-  for (const row of rows) {
-    const rawName = normalizeWhitespace(row[0] ?? "");
-    if (!rawName) {
-      continue;
+    const capabilityId = cell(row, "Capability ID");
+    if (!capabilityIds.has(capabilityId)) {
+      throw new Error(`${where}: unknown Capability ID "${capabilityId}".`);
     }
-    const agencyId = resolveAgencyId(rawName);
-    if (seenAgencies.has(agencyId)) {
-      throw new Error(`Capabilities CSV has more than one row for agency "${rawName}"`);
+
+    const value = dropdown(cell(row, "Answer"), ANSWER, () => `${where}: Answer`) ?? "unknown";
+    const qualifier = cell(row, "Agency's wording");
+
+    const byCapability = answers.get(agencyId) ?? new Map<string, AgencyCapability>();
+    if (byCapability.has(capabilityId)) {
+      throw new Error(`${where}: a second answer from "${agencyName}" for "${capabilityId}".`);
     }
-    seenAgencies.add(agencyId);
+    byCapability.set(capabilityId, { capabilityId, value, ...(qualifier ? { qualifier } : {}) });
+    answers.set(agencyId, byCapability);
+  });
 
-    const entries: AgencyCapability[] = capabilityColumns.map(({ index, label }, position) => {
-      const capability = capabilities[position];
-      if (capability === undefined) {
-        throw new Error(`Internal error: no capability for column "${label}"`);
-      }
-      const parsed = parseCapabilityValue(row[index] ?? "");
-      return {
-        capabilityId: capability.id,
-        value: parsed.value,
-        ...(parsed.qualifier !== undefined ? { qualifier: parsed.qualifier } : {}),
-      };
-    });
-
-    profiles.push({ agencyId, capabilities: entries });
-  }
-
-  return { capabilities, profiles };
+  // Every surveyed agency gets a full profile in capability order, unanswered cells "unknown" —
+  // the same shape the view has always received, whichever answers happen to have rows.
+  return agencies
+    .filter((agency) => surveyed.has(agency.id))
+    .map((agency) => ({
+      agencyId: agency.id,
+      capabilities: capabilities.map(
+        (capability): AgencyCapability =>
+          answers.get(agency.id)?.get(capability.id) ?? {
+            capabilityId: capability.id,
+            value: "unknown",
+          },
+      ),
+    }));
 }
-
-interface MapRow {
-  Question: string;
-  Capability: string;
-  Note?: string;
-}
-
-const MAP_REQUIRED_COLUMNS: (keyof MapRow)[] = ["Question", "Capability"];
 
 /**
- * Parses the editorial question → capability map. Capability labels must match a column of the
- * capabilities sheet exactly (an unknown one fails the build rather than being dropped), but
- * question text is stored as written and resolved later — see `resolveQuestionCapabilityLinks`.
+ * The editorial question → capability map. Capability ids must exist (an unknown one is an
+ * error), but question ids are only checked for shape: they are resolved against whichever
+ * question set is displayed — see `resolveQuestionCapabilityLinks`.
  */
-function parseQuestionCapabilityMap(csvText: string, capabilities: Capability[]) {
-  const result = Papa.parse<MapRow>(csvText, { header: true, skipEmptyLines: true });
-  if (result.errors.length > 0) {
-    const details = result.errors
-      .map((e) => `${e.type}: ${e.message} (row ${String(e.row)})`)
-      .join("\n");
-    throw new Error(`Question/capability map parse errors:\n${details}`);
-  }
-
-  const header = result.meta.fields ?? [];
-  const missing = MAP_REQUIRED_COLUMNS.filter((column) => !header.includes(column));
-  if (missing.length > 0) {
-    throw new Error(
-      "Question/capability map is missing expected column(s): " +
-        missing.map((c) => `"${c}"`).join(", "),
-    );
-  }
-
-  const labelToId = new Map(
-    capabilities.map((capability) => [capability.label.toLowerCase(), capability.id]),
-  );
-
-  const links: QuestionCapabilityLink[] = [];
-  for (const row of result.data) {
-    const questionText = normalizeWhitespace(row.Question);
-    const capabilityLabel = normalizeWhitespace(row.Capability);
-    if (!questionText && !capabilityLabel) {
-      continue;
+function parseQuestionCapabilityMap(
+  csvText: string,
+  capabilities: Capability[],
+): QuestionCapabilityLink[] {
+  const capabilityIds = new Set(capabilities.map((c) => c.id));
+  return parseTab(csvText, "Question-capability map", MAP_COLUMNS).map((row, index) => {
+    const where = `Question-capability map tab, row ${String(index + 2)}`;
+    const questionId = cell(row, "Question ID");
+    const capabilityId = cell(row, "Capability ID");
+    if (!ID_PATTERN.test(questionId)) {
+      throw new Error(`${where}: Question ID "${questionId}" is not a valid ID.`);
     }
-
-    const capabilityId = labelToId.get(capabilityLabel.toLowerCase());
-    if (capabilityId === undefined) {
-      throw new Error(
-        `Question/capability map references unknown capability "${capabilityLabel}". ` +
-          `Known capabilities: ${capabilities.map((c) => `"${c.label}"`).join(", ")}`,
-      );
+    if (!capabilityIds.has(capabilityId)) {
+      throw new Error(`${where}: unknown Capability ID "${capabilityId}".`);
     }
-
-    const note = normalizeWhitespace(row.Note ?? "");
-    links.push({ questionText, capabilityId, ...(note ? { note } : {}) });
-  }
-
-  return links;
+    const note = cell(row, "Note");
+    return { questionId, capabilityId, ...(note ? { note } : {}) };
+  });
 }
 
-export function normalizeCapabilitiesCsv(
-  capabilitiesCsvText: string,
-  questionMapCsvText: string,
+export function normalizeCapabilities(
+  sources: CapabilitySourceTexts,
   agencies: Agency[],
 ): CapabilityData {
-  const { capabilities, profiles } = parseMatrixCsv(
-    capabilitiesCsvText,
-    createAgencyResolver(agencies),
-  );
-  const questionLinks = parseQuestionCapabilityMap(questionMapCsvText, capabilities);
-  return { capabilities, profiles, questionLinks };
+  const capabilities = parseCapabilities(sources.capabilities);
+  return {
+    capabilities,
+    profiles: parseProfiles(sources.providerCapabilities, capabilities, agencies),
+    questionLinks: parseQuestionCapabilityMap(sources.capabilityMap, capabilities),
+  };
 }
 
 export interface ResolvedQuestionCapabilityLinks {
   /** Links keyed by the id of the question they matched. */
   byQuestionId: Map<string, QuestionCapabilityLink[]>;
-  /** Links whose question text matched no question in the active dataset. */
+  /** Links whose question id matched no question in the active dataset. */
   unmatched: QuestionCapabilityLink[];
 }
 
 /**
- * Matches the map's question text against a question set, exactly and case-sensitively — the
- * same discipline `normalize.ts` applies to upstream/downstream references, and for the same
- * reason: a near-miss is a data error someone needs to see, not something to guess at.
- *
- * This runs against whatever question set is currently displayed, so an uploaded CSV that
- * renames or removes a question simply loses that link (reported as unmatched) instead of
- * breaking the view.
+ * Matches the map's question ids against a question set. This runs against whatever question
+ * set is currently displayed, so an uploaded preview that removes a question simply loses that
+ * link (reported as unmatched) instead of breaking the view.
  */
 export function resolveQuestionCapabilityLinks(
   links: QuestionCapabilityLink[],
   questions: IntakeQuestion[],
 ): ResolvedQuestionCapabilityLinks {
-  const textToId = new Map(questions.map((question) => [question.text, question.id]));
+  const questionIds = new Set(questions.map((question) => question.id));
   const byQuestionId = new Map<string, QuestionCapabilityLink[]>();
   const unmatched: QuestionCapabilityLink[] = [];
 
   for (const link of links) {
-    const questionId = textToId.get(link.questionText);
-    if (questionId === undefined) {
+    if (!questionIds.has(link.questionId)) {
       unmatched.push(link);
       continue;
     }
-    const existing = byQuestionId.get(questionId);
+    const existing = byQuestionId.get(link.questionId);
     if (existing) {
       existing.push(link);
     } else {
-      byQuestionId.set(questionId, [link]);
+      byQuestionId.set(link.questionId, [link]);
     }
   }
 

@@ -51,113 +51,6 @@
   ],
   "profiles": [
     {
-      "agencyId": "community-van",
-      "capabilities": [
-        {
-          "capabilityId": "allows-for-companions",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "wheelchair-accessible",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "power-wheelchair-accessible",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "walker-folding",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "walker-nonfolding",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "portable-oxygen",
-          "value": "conditional",
-          "qualifier": "Probably yes"
-        },
-        {
-          "capabilityId": "allows-service-animals",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "door-to-door",
-          "value": "no"
-        },
-        {
-          "capabilityId": "curb-to-curb",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "interpretation-support",
-          "value": "no"
-        },
-        {
-          "capabilityId": "lift",
-          "value": "no"
-        },
-        {
-          "capabilityId": "ramp",
-          "value": "yes"
-        }
-      ]
-    },
-    {
-      "agencyId": "homage-tap",
-      "capabilities": [
-        {
-          "capabilityId": "allows-for-companions",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "wheelchair-accessible",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "power-wheelchair-accessible",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "walker-folding",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "walker-nonfolding",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "portable-oxygen",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "allows-service-animals",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "door-to-door",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "curb-to-curb",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "interpretation-support",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "lift",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "ramp",
-          "value": "unknown"
-        }
-      ]
-    },
-    {
       "agencyId": "hyde-shuttle",
       "capabilities": [
         {
@@ -205,117 +98,6 @@
         {
           "capabilityId": "lift",
           "value": "yes"
-        },
-        {
-          "capabilityId": "ramp",
-          "value": "unknown"
-        }
-      ]
-    },
-    {
-      "agencyId": "sound-generations-vts",
-      "capabilities": [
-        {
-          "capabilityId": "allows-for-companions",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "wheelchair-accessible",
-          "value": "conditional",
-          "qualifier": "Depends on vehicle"
-        },
-        {
-          "capabilityId": "power-wheelchair-accessible",
-          "value": "conditional",
-          "qualifier": "Depends on vehicle"
-        },
-        {
-          "capabilityId": "walker-folding",
-          "value": "conditional",
-          "qualifier": "Depends on vehicle"
-        },
-        {
-          "capabilityId": "walker-nonfolding",
-          "value": "conditional",
-          "qualifier": "Depends on vehicle"
-        },
-        {
-          "capabilityId": "portable-oxygen",
-          "value": "conditional",
-          "qualifier": "Depends on vehicle"
-        },
-        {
-          "capabilityId": "allows-service-animals",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "door-to-door",
-          "value": "no"
-        },
-        {
-          "capabilityId": "curb-to-curb",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "interpretation-support",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "lift",
-          "value": "no"
-        },
-        {
-          "capabilityId": "ramp",
-          "value": "unknown"
-        }
-      ]
-    },
-    {
-      "agencyId": "zip-shuttle",
-      "capabilities": [
-        {
-          "capabilityId": "allows-for-companions",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "wheelchair-accessible",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "power-wheelchair-accessible",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "walker-folding",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "walker-nonfolding",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "portable-oxygen",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "allows-service-animals",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "door-to-door",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "curb-to-curb",
-          "value": "yes"
-        },
-        {
-          "capabilityId": "interpretation-support",
-          "value": "unknown"
-        },
-        {
-          "capabilityId": "lift",
-          "value": "unknown"
         },
         {
           "capabilityId": "ramp",
@@ -430,6 +212,170 @@
       ]
     },
     {
+      "agencyId": "access-paratransit",
+      "capabilities": [
+        {
+          "capabilityId": "allows-for-companions",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "wheelchair-accessible",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "power-wheelchair-accessible",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "walker-folding",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "walker-nonfolding",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "portable-oxygen",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "allows-service-animals",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "door-to-door",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "curb-to-curb",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "interpretation-support",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "lift",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "ramp",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
+      "agencyId": "homage-tap",
+      "capabilities": [
+        {
+          "capabilityId": "allows-for-companions",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "wheelchair-accessible",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "power-wheelchair-accessible",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "walker-folding",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "walker-nonfolding",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "portable-oxygen",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "allows-service-animals",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "door-to-door",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "curb-to-curb",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "interpretation-support",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "lift",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "ramp",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
+      "agencyId": "sound-generations-vts",
+      "capabilities": [
+        {
+          "capabilityId": "allows-for-companions",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "wheelchair-accessible",
+          "value": "conditional",
+          "qualifier": "Depends on vehicle"
+        },
+        {
+          "capabilityId": "power-wheelchair-accessible",
+          "value": "conditional",
+          "qualifier": "Depends on vehicle"
+        },
+        {
+          "capabilityId": "walker-folding",
+          "value": "conditional",
+          "qualifier": "Depends on vehicle"
+        },
+        {
+          "capabilityId": "walker-nonfolding",
+          "value": "conditional",
+          "qualifier": "Depends on vehicle"
+        },
+        {
+          "capabilityId": "portable-oxygen",
+          "value": "conditional",
+          "qualifier": "Depends on vehicle"
+        },
+        {
+          "capabilityId": "allows-service-animals",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "door-to-door",
+          "value": "no"
+        },
+        {
+          "capabilityId": "curb-to-curb",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "interpretation-support",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "lift",
+          "value": "no"
+        },
+        {
+          "capabilityId": "ramp",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
       "agencyId": "snow-goose-transit",
       "capabilities": [
         {
@@ -483,11 +429,11 @@
       ]
     },
     {
-      "agencyId": "access-paratransit",
+      "agencyId": "zip-shuttle",
       "capabilities": [
         {
           "capabilityId": "allows-for-companions",
-          "value": "yes"
+          "value": "unknown"
         },
         {
           "capabilityId": "wheelchair-accessible",
@@ -499,11 +445,11 @@
         },
         {
           "capabilityId": "walker-folding",
-          "value": "unknown"
+          "value": "yes"
         },
         {
           "capabilityId": "walker-nonfolding",
-          "value": "unknown"
+          "value": "yes"
         },
         {
           "capabilityId": "portable-oxygen",
@@ -534,66 +480,120 @@
           "value": "unknown"
         }
       ]
+    },
+    {
+      "agencyId": "community-van",
+      "capabilities": [
+        {
+          "capabilityId": "allows-for-companions",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "wheelchair-accessible",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "power-wheelchair-accessible",
+          "value": "unknown"
+        },
+        {
+          "capabilityId": "walker-folding",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "walker-nonfolding",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "portable-oxygen",
+          "value": "conditional",
+          "qualifier": "Probably yes"
+        },
+        {
+          "capabilityId": "allows-service-animals",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "door-to-door",
+          "value": "no"
+        },
+        {
+          "capabilityId": "curb-to-curb",
+          "value": "yes"
+        },
+        {
+          "capabilityId": "interpretation-support",
+          "value": "no"
+        },
+        {
+          "capabilityId": "lift",
+          "value": "no"
+        },
+        {
+          "capabilityId": "ramp",
+          "value": "yes"
+        }
+      ]
     }
   ],
   "questionLinks": [
     {
-      "questionText": "Accessibility needs",
+      "questionId": "accessibility-needs",
       "capabilityId": "wheelchair-accessible",
       "note": "'Accessibility needs' is a free-text question; these six capability columns are the specific things it is understood to be asking about. The source data does not itemize them, so this breakdown is an editorial claim, not a transcription."
     },
     {
-      "questionText": "Accessibility needs",
+      "questionId": "accessibility-needs",
       "capabilityId": "power-wheelchair-accessible",
       "note": "See note on the Wheelchair Accessible row. Worth attention: this capability varies between providers but no agency asks about it specifically."
     },
     {
-      "questionText": "Accessibility needs",
+      "questionId": "accessibility-needs",
       "capabilityId": "walker-folding",
       "note": "See note on the Wheelchair Accessible row."
     },
     {
-      "questionText": "Accessibility needs",
+      "questionId": "accessibility-needs",
       "capabilityId": "walker-nonfolding",
       "note": "See note on the Wheelchair Accessible row."
     },
     {
-      "questionText": "Accessibility needs",
+      "questionId": "accessibility-needs",
       "capabilityId": "lift",
       "note": "See note on the Wheelchair Accessible row."
     },
     {
-      "questionText": "Accessibility needs",
+      "questionId": "accessibility-needs",
       "capabilityId": "ramp",
       "note": "See note on the Wheelchair Accessible row."
     },
     {
-      "questionText": "Do you require a service animal",
+      "questionId": "do-you-require-a-service-animal",
       "capabilityId": "allows-service-animals",
       "note": "Direct one-to-one correspondence between the question and the capability column."
     },
     {
-      "questionText": "Do you need a companion",
+      "questionId": "do-you-need-a-companion",
       "capabilityId": "allows-for-companions",
       "note": "Direct correspondence. Note that Hyde Shuttle's answer carries a limit ('1') that the canonical yes/no value does not capture — read the qualifier alongside it."
     },
     {
-      "questionText": "Do you require portable Oxygen",
+      "questionId": "do-you-require-portable-oxygen",
       "capabilityId": "portable-oxygen",
       "note": "Direct one-to-one correspondence between the question and the capability column."
     },
     {
-      "questionText": "Do you need an interpreter",
+      "questionId": "do-you-need-an-interpreter",
       "capabilityId": "interpretation-support",
       "note": "Direct one-to-one correspondence between the question and the capability column."
     },
     {
-      "questionText": "Can you get in and out of a vehicle on your own?",
+      "questionId": "can-you-get-in-and-out-of-a-vehicle-on-your-own",
       "capabilityId": "door-to-door",
       "note": "The question distinguishes riders who need door-to-door assistance from those a curb-to-curb service can carry, so it maps to both service-model columns."
     },
     {
-      "questionText": "Can you get in and out of a vehicle on your own?",
+      "questionId": "can-you-get-in-and-out-of-a-vehicle-on-your-own",
       "capabilityId": "curb-to-curb",
       "note": "See note on the Door-to-door row."
     }

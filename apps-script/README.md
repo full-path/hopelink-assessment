@@ -1,4 +1,12 @@
-# Comment store (Google Apps Script + Google Sheet)
+# Google Apps Script
+
+Two scripts, for two different spreadsheets. Neither deploys from CI; both are checked in so they
+can be reviewed and recovered.
+
+| File            | Bound to                                                | Purpose                                                                                       |
+| --------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `Comments.gs`   | The comment store spreadsheet                           | A web app that stores reader comments. Everything up to "Data sheet setup" below is about it. |
+| `SheetSetup.gs` | The data spreadsheet staff edit (not the comment store) | Adds dropdowns, validation and the Checks tab. See "Data sheet setup" below.                  |
 
 `Comments.gs` is the backing store for reader comments on intake questions and provider
 capabilities. It is the only part of this system that does **not** deploy from CI — you set it up
@@ -130,3 +138,39 @@ Everything happens in the spreadsheet:
   executions a day). Nowhere near a constraint for a review tool used by a committee.
 - **No threading, no edit-from-the-app, no notifications.** Deliberately: those need real
   accounts, and this deployment has none.
+
+## Data sheet setup (`SheetSetup.gs`)
+
+The data spreadsheet holds the seven tabs the site reads (README, "Live data from a Google
+Sheet"). It is edited centrally by Hopelink staff, so the aim of this script is that mistakes are
+caught in the sheet, by the person making them, rather than surfacing as an error on the site.
+
+**Running it.** In the data spreadsheet, after importing the CSVs: Extensions → Apps Script, paste
+in `SheetSetup.gs`, save, and run `setupSheet` (approve the permissions prompt the first time).
+It checks every tab's header row first and stops, naming the tab and column, if one does not
+match. It is safe to re-run, and should be re-run whenever this file changes, or if someone has
+pasted over the dropdowns.
+
+**What it adds:**
+
+- **Dropdowns** on every fixed-vocabulary column (`Kind`, `Capability survey`, `Asked`,
+  `Verification`, `Answer`) and every reference to another tab (question IDs, agency names,
+  capability IDs), fed by the named ranges `QuestionIDs`, `AgencyNames` and `CapabilityIDs`.
+  Invalid entries are rejected as they are typed.
+- **ID rules** on the `ID` columns of Questions and Capabilities: lowercase words joined by
+  hyphens, unique. Editing an existing ID shows a warning first, because comments on the site are
+  attached to it.
+- **Red highlighting** of rows the site would reject: a second Requirements row for the same
+  question and agency, a row with neither Asked nor Verification, proof detail without "Proof
+  required", a question linked to itself, a capability answer from an agency not marked as having
+  returned the survey.
+- **A Checks tab** counting each problem the site checks for. Every count should be 0.
+- **An Instructions tab** with how-tos for staff.
+
+Checks and Instructions are for editors: **do not publish them.** Publish only the seven data tabs.
+
+**Its last step** logs a `SHEET_TABS` block (View → Logs, or the execution log) containing this
+spreadsheet's tab gids. Paste it into `src/sheetTabs.ts`.
+
+The rules here mirror the normalizers in `src/data/`. If they ever disagree, the site's error
+message is the authority — and this script should be fixed to match.

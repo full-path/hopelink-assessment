@@ -28,90 +28,94 @@ not a preference.
 
 ## 2. Data Sources
 
-Four CSVs in `/data`, all hand-editable. Where a live Google Sheet is configured (Section 5,
-requirement 9) it is the working source of record, with one tab per CSV, and these files are its
+Seven CSVs in `/data`, one per tab of the Google Sheet, all hand-editable. Where a live sheet is
+configured (Section 5, requirement 9) it is the working source of record and these files are its
 committed snapshot — refreshed by `npm run pull-sheet`, and what the page paints first and falls
-back to. With no sheet configured they are the source of record outright, as before.
+back to. With no sheet configured they are the source of record outright.
 
-| File | Contents |
-|---|---|
-| `agencies.csv` | The agency roster: display name, `Kind`, semicolon-separated `Aliases`, and an editors-only `Note`. Every agency name in every other file must resolve against it. Data rather than code so staff can add an agency or tolerate a new spelling without a developer. |
-| `eligibility-questions.csv` | The intake questions. Cleaned from the agency-survey export (`by-question.csv`), which is kept alongside it so the cleanup is auditable. That export is near-verbatim rather than frozen: a question may be added to it deliberately (see Section 11, item 13), so it is a maintained question bank, not an immutable receipt. Edit it only to add a question, never to restate what an agency answered. |
-| `capabilities.csv` | One row per ride provider, one column per capability (wheelchair, lift, service animals, …), free-text answers. |
-| `question-capability-map.csv` | An editorial claim that a given question exists in order to determine a given capability. Not derivable from either sheet above — a human asserts it, and the `Note` column records why. Kept as a CSV rather than in code so a program person can review and edit it. |
+The layout is **one value per cell**: every multi-value cell, delimiter convention and
+text-matched reference of the original export (Section 3) was replaced by rows and stable IDs, so
+that a sheet edited continually by staff can be validated cell by cell, in the sheet, with
+dropdowns. Other tabs refer to questions and capabilities by ID and to agencies by name.
 
-Columns of `eligibility-questions.csv` as shipped:
+| File / tab | Columns | Contents |
+|---|---|---|
+| `agencies.csv` — Agencies | `Agency`, `Kind`, `Aliases`, `Capability survey`, `Note` | The agency roster. Every agency name anywhere must resolve against it (name or `;`-separated alias). `Capability survey` (`Returned` / blank) states whether the agency returned the capability survey, rather than leaving it inferred. Data rather than code so staff can add an agency without a developer. |
+| `questions.csv` — Questions | `ID`, `Question`, `Data Quality Notes` | The intake questions, in display order. `ID` is assigned once and never changed; the original ids were the slugs of the original text and were kept, so existing comments stayed attached. |
+| `requirements.csv` — Requirements | `Question ID`, `Agency`, `Asked`, `Verification`, `Proof detail` | One row per (question, agency), never two. `Asked` ∈ Required / Optional; `Verification` ∈ Self-attestation / Proof required; either may be blank, not both. These are two separate facts — is it mandatory, and how is the answer checked — that the export stored as four columns of one list, which is what allowed contradictions. |
+| `question-links.csv` — Question links | `Question ID`, `Leads to`, `Note` | One row per link, in the direction it gates. Upstream and downstream are both derived from it, so a link can no longer be recorded on one side only. |
+| `capabilities.csv` — Capabilities | `ID`, `Label` | Provider capabilities. Stable ID, rewordable label. |
+| `provider-capabilities.csv` — Provider capabilities | `Agency`, `Capability ID`, `Answer`, `Agency's wording` | One row per answer. `Answer` ∈ Yes / No / Conditional; the agency's own phrasing goes in `Agency's wording`. A missing row is `unknown`, never `no`. |
+| `question-capability-map.csv` — Question-capability map | `Question ID`, `Capability ID`, `Note` | An editorial claim that a question exists to determine a capability. Not derivable from the other tabs — a human asserts it, and `Note` records why. |
 
-| Column | Content |
-|---|---|
-| `Question` | Intake question text |
-| `Providers Required` | Agencies for which this question is mandatory |
-| `Providers Optional` | Agencies for which this question is asked but optional |
-| `Providers Self Attestation` | Agencies accepting the applicant's word with no proof |
-| `Providers Burden of Proof` | Agencies requiring documentary evidence, with the evidence type embedded in the same cell |
-| `Upstream Q's` | Free-text reference to a question that must be answered before this one is shown |
-| `Downstream Q's` | Free-text reference to a question this one gates |
+`by-question.csv` is the agency-survey export the data was first cleaned from, kept so that
+cleanup stays auditable. It is near-verbatim rather than frozen: a question may be added to it
+deliberately (see Section 11, item 13). It is not read by the app or published to the sheet; edit
+it only to add a question, never to restate what an agency answered.
 
-This file is the input to a normalization step (see Section 4) that runs in three places: at build
-time to produce the committed snapshot, in the browser when the live sheet loads (Section 5,
-requirement 9), and in the browser when a user uploads a replacement CSV for a session-only
-preview (Section 5, requirement 6). All paths go through the same shared modules — the UI never
-parses raw CSV cells itself.
+The tabs are normalized (Section 4) in three places: at build time to produce the committed
+snapshot, in the browser when the live sheet loads (Section 5, requirement 9), and in the browser
+when a user uploads replacement question tabs for a session-only preview (Section 5,
+requirement 6). All paths go through the same shared modules — the UI never parses raw CSV cells
+itself. `apps-script/SheetSetup.gs` mirrors the same rules inside the sheet (dropdowns, ID rules,
+highlighting, a Checks tab) so staff see a mistake before readers do; the app remains the
+authority.
 
-## 3. Data Anomalies Confirmed in Source (Must Be Resolved Before Ingestion)
+## 3. Data Anomalies in the Original Export
 
-The following defects exist in the current CSV and will produce incorrect output if the
-application parses the raw cells directly at runtime:
+The original agency-survey export, and the first hand-cleaned CSV made from it, had the defects
+below. Each was resolved once, by hand, in the cleaned data; the current layout (Section 2) then
+removed the *structure* that allowed most of them, so they cannot be re-entered. They are kept
+here as the record of what the data went through, and of what an uploaded or pulled file could
+still get wrong.
 
 - **Agency name variants.** `Beyond the borders` vs `Beyond the Borders`; `Access paratransit` vs
   `Access Paratransit`; `ORCA` appears bare and as `ORCA (Senior)`, `ORCA (disabled)`,
-  `ORCA LIFT`. A canonical agency list and alias-resolution table is required; it is
-  `data/agencies.csv`. Whether the ORCA variants are distinct programs or inconsistent labeling
-  of one program is unresolved in the source data — see Section 11, item 1.
-- **Non-resolvable linkage.** `Upstream Q's` / `Downstream Q's` reference other questions by
-  paraphrase, not exact text match or ID. They cannot be turned into a navigable graph without
-  manual reconciliation against the `Question` column.
-- **Overloaded proof field.** `Providers Burden of Proof` interleaves agency name and proof-detail
-  text using the same comma delimiter used elsewhere for agency lists, e.g.
-  `ORCA (ProviderOne number OR EBT number OR DSHS Client ID number)`. Naive comma-splitting breaks
-  this.
-- **Multi-reference link cells.** Some `Upstream Q's` cells name two questions in one cell,
-  comma-separated (`Phone number, email`). Commas cannot be the separator here because question
-  text contains commas of its own (`Special directions (gate code, etc)`), so the cleaned CSV
-  re-delimits these with `;` — the same convention the proof column uses — and `normalize.ts`
-  splits on `;`.
-- **A referenced question with no row of its own.** `Home address` and `Mailing address` both
-  named `Mailing address same as home address?` in their link columns, but the survey had no row
-  for it, so both references dangled. It was added deliberately — to `by-question.csv` and to the
-  cleaned sheet — with blank agency columns, because no agency answered for it. See Section 11,
+  `ORCA LIFT`. *Now:* the roster's aliases resolve them, and the sheet offers agency names as a
+  dropdown. Whether the ORCA variants are distinct programs is still open — Section 11, item 1.
+- **Non-resolvable linkage.** `Upstream Q's` / `Downstream Q's` named other questions by
+  paraphrase, not exact text or ID. Three paraphrases were matched by hand (Section 11, item 5).
+  *Now:* links are by question ID, picked from a dropdown.
+- **Overloaded proof field.** `Providers Burden of Proof` interleaved agency names and proof text
+  with commas, e.g. `ORCA (ProviderOne number OR EBT number OR DSHS Client ID number)`, and was
+  re-delimited with `;` in the cleaned CSV. *Now:* agency and proof detail are separate cells.
+- **Multi-reference link cells.** Some link cells named two questions (`Phone number, email`) in
+  text that itself contains commas. *Now:* one link per row.
+- **Contradictions and gaps.** An agency could appear in both Required and Optional for one
+  question (ORCA on `Phone`), or have a checking method with no Required/Optional entry (six
+  pairs). *Now:* one row per question and agency makes the first impossible to enter; the second
+  is a Requirements row with `Asked` blank, accepted and shown. The ORCA/Phone row was recorded as
+  Required in the conversion — Section 11, item 15.
+- **One-sided links.** A link was sometimes recorded only on one of its two questions (the
+  ProviderOne row's note flags one case). *Now:* derived from a single row, shown at both ends.
+- **A referenced question with no row of its own.** `Mailing address same as home address?` was
+  named by two rows but had none; it was added deliberately with no agency data. See Section 11,
   item 13.
-- **A link cell pointing outside this sheet.** `Accessibility needs` named
-  `Which provider capabilities are needed` as a downstream question. That is not an intake
-  question but a pointer at `capabilities.csv`, and the relationship is modelled properly in
-  `question-capability-map.csv` (six capability columns, with the editorial reasoning per row).
-  The cell is therefore cleared rather than reconciled — it was redundant as well as
-  unresolvable.
-- **The cleaned sheet now has zero unresolved links.** The *rendering* for them is still live and
-  still required: an uploaded CSV (Section 5, requirement 6) can reintroduce one at any time, and
-  Section 11 item 2 holds. There is simply nothing in the committed data that triggers it. The
-  filter that narrowed the list to them has been removed — see Section 11, item 2.
-- **Structural noise.** A blank row follows the header row. Some agency names carry trailing
-  whitespace (e.g. `"ORCA "`), some cells end in a trailing comma that yields an empty agency
-  token, the `Downstream Q's ` header itself carries a trailing space, and one proof cell
-  (Income) spans five physical lines inside its quotes.
-- **Free-text capability answers.** `capabilities.csv` answers in prose: `Yes`, `yes`, `No`, `no`,
-  `Yes (1)`, `Probably yes`, `Depends on vehicle`, `Yes (Language line)`, and blanks. These are
-  mapped to a canonical vocabulary with the agency's own wording kept as a qualifier. **A blank is
-  `unknown`, never `no`** — three agencies returned an entirely blank row, and reporting that as
-  "does not offer wheelchair access" would be actively false.
+- **A link cell pointing outside the sheet.** `Accessibility needs` named
+  `Which provider capabilities are needed` as downstream — a pointer at capability data, modelled
+  properly in the question-capability map — so it was cleared rather than reconciled.
+- **Zero unresolved links in the committed data.** The *rendering* for them is still live and
+  still required: an uploaded preview or a sheet edit can reintroduce one (a link to an ID that
+  does not exist), and Section 11 item 2 holds. The filter that narrowed the list to them has been
+  removed — see Section 11, item 2.
+- **Structural noise.** A blank row after the header, trailing whitespace in agency names
+  (`"ORCA "`), trailing commas yielding empty agency tokens, a `Downstream Q's ` header with a
+  trailing space, and a proof cell spanning five physical lines. *Now:* whitespace is normalized
+  on read, blank rows skipped, and every remaining cell holds one value.
+- **Free-text capability answers.** `Yes`, `yes`, `No`, `no`, `Yes (1)`, `Probably yes`,
+  `Depends on vehicle`, `Yes (Language line)`, and blanks. *Now:* `Answer` is a dropdown and the
+  agency's own wording has its own column. **A blank is `unknown`, never `no`** — three agencies
+  returned an entirely blank survey, and reporting that as "does not offer wheelchair access"
+  would be actively false.
 
-None of these should be handled with defensive parsing logic scattered through the application.
-They are resolved once, in the shared normalization layer under `src/data/` — `normalize.ts` for
-the questions sheet, `normalizeCapabilities.ts` for the capability sheets, with the roster parser
-and resolver (`agencies.ts`) and string helpers (`text.ts`) shared between them, and
-`dataset.ts` normalizing all four CSVs as one unit. Every path into the app — build script, live
-sheet and in-browser upload alike — goes through those modules. UI code should never see a raw
-CSV row.
+None of this should be handled with defensive parsing logic scattered through the application.
+It lives once, in the shared normalization layer under `src/data/` — `normalize.ts` for the
+question tabs, `normalizeCapabilities.ts` for the capability tabs, with the roster parser and
+resolver (`agencies.ts`), the tab helpers (`tabs.ts`: header checks, dropdown matching, the ID
+rule) and string helpers (`text.ts`) shared between them, and `dataset.ts` normalizing all seven
+tabs as one unit. Every path into the app — build script, live sheet and in-browser upload alike —
+goes through those modules. UI code should never see a raw CSV row. Every rejection names the tab
+and row, because the person reading it is a staff member looking at the sheet.
 
 ## 4. Data Model (Normalized Output of Preprocessing)
 
@@ -127,12 +131,13 @@ interface AgencyRequirement {
 }
 
 interface IntakeQuestion {
-  id: string;              // stable slug generated from question text
+  id: string;              // assigned once in the Questions tab, never changed
   text: string;
   requirements: AgencyRequirement[];
   upstreamRefs: string[];  // resolved question ids; empty array if unresolved/unmatched
   downstreamRefs: string[];
-  unresolvedLinks?: string[]; // raw text that could not be matched to a question id — surfaced, not hidden
+  unresolvedLinks?: string[]; // linked question ids that do not exist — surfaced, not hidden
+  dataQualityNote?: string;
 }
 
 interface Agency {
@@ -140,6 +145,7 @@ interface Agency {
   displayName: string;
   kind: "ride_provider" | "fare_program" | "travel_training";
   aliases: string[];       // raw strings from source CSVs mapped to this agency
+  capabilitySurvey: "returned" | "not_surveyed"; // stated in the roster, not inferred
 }
 
 // --- Provider capabilities ---
@@ -147,8 +153,8 @@ interface Agency {
 type CapabilityValue = "yes" | "no" | "conditional" | "unknown";
 
 interface Capability {
-  id: string;              // slug of the source column header
-  label: string;           // column header verbatim
+  id: string;              // assigned once in the Capabilities tab, never changed
+  label: string;           // rewordable
 }
 
 interface AgencyCapability {
@@ -163,7 +169,7 @@ interface AgencyCapabilityProfile {
 }
 
 interface QuestionCapabilityLink {
-  questionText: string;    // resolved to a question id at runtime, not at build time
+  questionId: string;      // resolved against the displayed questions at runtime
   capabilityId: string;
   note?: string;           // why a human asserted this link
 }
@@ -188,14 +194,19 @@ interface Comment {
 }
 ```
 
-`Comment.targetLabel` is redundant with `id` while the dataset is unchanged, and that is the
-point: question ids are slugs of question text, so rewording a question breaks every comment on
-it. Keeping the label means an orphan can still be displayed against the thing it was about
-rather than as a bare slug.
+Question and capability ids are assigned in the sheet and never derived from text, so rewording a
+question or relabelling a capability keeps every comment on it. (Before the sheet layout, ids were
+slugs of the text and any rewording orphaned the discussion.) `Comment.targetLabel` is still kept:
+a question can be deleted, or its id changed against the rules, and the label means the orphan can
+still be displayed against the thing it was about rather than as a bare id.
 
-`QuestionCapabilityLink` stores question *text* rather than an id so it can be re-resolved against
-whatever question set is displayed; an uploaded CSV that renames a question loses that link and
-has it reported as unmatched, rather than rendering something stale.
+`AgencyCapabilityProfile` exists only for agencies whose `capabilitySurvey` is `returned`; its
+unanswered capabilities are `unknown`. No profile means never surveyed. The two are different
+facts and the coverage view reports them differently.
+
+`QuestionCapabilityLink` is resolved against whatever question set is displayed rather than at
+build time, so an uploaded preview that drops a question loses that link and has it reported as
+unmatched, rather than rendering something stale.
 
 Unresolved upstream/downstream references (Section 3) are preserved in `unresolvedLinks` and
 rendered in the UI as flagged/unlinked rather than silently dropped. Hiding known-bad data is worse
@@ -273,14 +284,16 @@ question/capability links, and comments whose target is not in the displayed dat
    render test asserts both that the control is absent by default and that the flag brings it
    back. Do not delete the machinery to tidy up; the requirement below still stands.
 
-   Upload of a replacement CSV (same column contract as the source file) that the UI re-renders
-   from immediately. The upload is a **session-only preview**: it is parsed entirely in the
+   Upload of replacement question tabs — Questions, Requirements and Question links, chosen
+   together and each recognised by its header row, since exported file names are Google's —
+   that the UI re-renders from immediately. All three are required: the snapshot holds no raw
+   CSV to fill a gap with. The upload is a **session-only preview**: it is parsed entirely in the
    browser, held in memory, never sent anywhere, and discarded on reload. A malformed upload
-   (unknown agency, missing columns, parse errors) surfaces the error and leaves the currently
-   displayed dataset untouched. The committed CSV remains the source of record; making an
-   uploaded file permanent still means editing `/data` and rebuilding (Section 8). Upload
-   replaces the **intake questions only** — capability data is always the committed set, and the
-   question/capability map is re-resolved against the uploaded questions.
+   (unknown agency, missing columns or tabs, parse errors) surfaces the error and leaves the
+   currently displayed dataset untouched. Making it permanent means editing the sheet or `/data`
+   (Section 8). Upload replaces the **intake questions only** — agencies and capability data are
+   always the published set, and the question/capability map is re-resolved against the uploaded
+   questions.
 7. A provider-capabilities view, and a per-question capability panel, answering: what is this
    question actually determining about a provider, and does that determination distinguish one
    provider from another? A capability every provider offers equally cannot route a rider, so a
@@ -293,26 +306,27 @@ question/capability links, and comments whose target is not in the displayed dat
    in a separate email thread. Persisted to a Google Sheet via an Apps Script web app
    (`/apps-script/`), gated by a shared passphrase the reader types (never compiled into the
    bundle), append-only from the app, moderated in the sheet. A comment whose target no longer
-   exists in the displayed dataset — because a question was reworded, or because an uploaded
-   preview drops it — is surfaced as an orphan, never silently reattached or hidden, per the rule
+   exists in the displayed dataset — because a question was deleted or its id changed, or because
+   an uploaded preview drops it — is surfaced as an orphan, never silently reattached or hidden, per the rule
    in Section 4. Commenting is **optional at build time**: with `VITE_COMMENTS_ENDPOINT` unset the
    whole application renders normally with commenting simply absent, and a dead or misconfigured
    endpoint degrades to an error inside the comment areas alone. The analysis is the product;
    comments are an enhancement and may never delay, block, or blank it.
 9. **Live data from a published Google Sheet**, so staff can update the data and have it visible
-   without a rebuild. Optional at build time: the four `VITE_SHEET_*_CSV_URL` variables (one per
-   tab, each that tab's "Publish to web" CSV URL) are all set or all unset. Constraints, each of
-   which is easy to break:
+   without a rebuild. Optional at build time: `VITE_SHEET_PUBLISHED_URL` is the document's
+   "Publish to web" link, and `src/sheetTabs.ts` maps each of the seven tabs to its `gid` (which
+   `apps-script/SheetSetup.gs` prints). Unset URL = snapshot only. Constraints, each of which is
+   easy to break:
 
    - **The page never waits on the sheet.** It paints from the committed snapshot and fetches the
      sheet after first paint, as comments do. Page load is unchanged; the sheet arrives
      ~0.5–2 s later.
    - **The sheet is validated as one dataset, by the build's own code** (`normalizeDataset`).
-     Anything the build would reject — unknown agency, missing column, duplicate question, a
-     capability column with answers but no name — rejects the whole sheet; the page keeps the
-     snapshot and states why. Never display part of a sheet, and never mix live tabs with snapshot
-     ones: every tab resolves agency names against the live roster. A partial configuration is
-     reported, not half-honoured.
+     Anything the build would reject — unknown agency or ID, missing column, duplicate ID, a
+     second Requirements row for a pair, a value outside a dropdown — rejects the whole sheet; the
+     page keeps the snapshot and states why, naming the tab and row. Never display part of a sheet, and never mix live tabs with snapshot
+     ones: every tab resolves agency names against the live roster. A partial configuration (a
+     URL with a tab not wired in `sheetTabs.ts`) is reported, not half-honoured.
    - **A data swap must not rebuild the page under a reader.** `render()` rebuilds everything, so
      a swap would collapse open cards and discard a half-written comment. An identical sheet
      only updates the status line in place; a different one is applied immediately only if the
@@ -322,6 +336,8 @@ question/capability links, and comments whose target is not in the displayed dat
      comment client.
    - **Freshness is bounded by Google, not by the app.** Published output is cached for about five
      minutes on Google's side.
+   - **Only the seven data tabs are published.** The sheet's Checks and Instructions tabs are for
+     editors; "Entire document" would publish them too.
 
 ## 6. Non-Functional Requirements / Code Quality Standards
 
@@ -339,8 +355,10 @@ question/capability links, and comments whose target is not in the displayed dat
   (`src/summary.ts`) and the capability variance analysis (`src/capabilities.ts`) — stays out of
   the data contract, as pure functions with no DOM.
 - Unit tests for the normalization modules specifically: roster parsing and agency alias
-  resolution, proof-field splitting, unresolved-link detection, capability value parsing,
-  question/capability link resolution. `src/data/dataset.test.ts` asserts that the committed JSON
+  resolution, every per-tab rule (ID shape and uniqueness, dropdown values, one Requirements row
+  per pair, proof detail only with proof required), links derived in both directions and
+  unresolved-link detection, capability answers and survey status, recognising uploaded tabs by
+  header, question/capability link resolution. `src/data/dataset.test.ts` asserts that the committed JSON
   is exactly what the committed CSVs normalize to, so a stale snapshot cannot ship, and
   `src/sheetSource.test.ts` covers the live loader's failure modes. This is the part of the system most likely to silently produce wrong output, and the
   part least likely to be caught by visual inspection. `src/app.render.test.ts` additionally mounts
@@ -391,36 +409,40 @@ question/capability links, and comments whose target is not in the displayed dat
 
 ## 8. Build & Deployment Pipeline
 
-1. The four CSVs (Section 2) checked into `/data/` — the sources of record, or the committed
+1. The seven CSVs (Section 2) checked into `/data/` — the sources of record, or the committed
    snapshot of the live sheet where one is configured (`npm run pull-sheet` refreshes them).
 2. `scripts/build-data.ts` runs at build time, outputs `/src/data/questions.json` and
    `/src/data/capabilities.json`. It warns (without failing) when a question/capability map entry
-   matches no question — the map is allowed to lag a CSV edit by one commit.
+   matches no question ID — the map is allowed to lag a question edit by one commit.
 3. Vite builds static assets.
 4. GitHub Actions workflow builds on push to `main` and deploys to GitHub Pages.
 5. Updating the intake comparison going forward means editing the live sheet, where one is
    configured — no build involved — or otherwise editing the CSVs and re-running the build.
-   The in-app CSV upload (Section 5, requirement 6) is a session-only preview for trying a
+   The in-app upload (Section 5, requirement 6) is a session-only preview for trying a
    candidate revision — it does not persist anything; permanent changes still go through this
    pipeline. Building a live-editing interface remains out of scope (Section 10).
 
 ## 9. Repository Structure
 
 ```
-/data/by-question.csv                 # agency-survey export + deliberate additions; the question bank
-/data/agencies.csv                    # source of record: the agency roster, kinds and aliases
-/data/eligibility-questions.csv       # source of record, hand-edited (cleaned from the above)
-/data/capabilities.csv                # source of record: provider capability matrix
-/data/question-capability-map.csv     # source of record: editorial question -> capability claims
+/data/by-question.csv                 # original agency-survey export + deliberate additions; not read
+/data/agencies.csv                    # tab: the agency roster, kinds, aliases, capability survey
+/data/questions.csv                   # tab: questions, with stable IDs
+/data/requirements.csv                # tab: one row per (question, agency): Asked, Verification, proof
+/data/question-links.csv              # tab: one row per link between questions
+/data/capabilities.csv                # tab: capabilities, with stable IDs
+/data/provider-capabilities.csv       # tab: one row per provider answer
+/data/question-capability-map.csv     # tab: editorial question -> capability claims
 /scripts/build-data.ts                # thin CLI: reads the CSVs, writes the JSON via the shared modules
 /scripts/pull-sheet.ts                # copies the live sheet into /data, validating first
 /src/data/text.ts                     # string canonicalization shared by both normalizers
+/src/data/tabs.ts                     # tab reading shared by all normalizers: columns, dropdowns, ID rule
 /src/data/agencies.ts                 # agency roster parser + alias resolution
 /src/data/agencies.test.ts
-/src/data/dataset.ts                  # all four CSVs -> one dataset; the build and the live sheet both call it
+/src/data/dataset.ts                  # all seven tabs -> one dataset; the build and the live sheet both call it
 /src/data/dataset.test.ts
-/src/data/normalize.ts                # questions:     CSV text -> NormalizedData
-/src/data/normalizeCapabilities.ts    # capabilities:  CSV text -> CapabilityData
+/src/data/normalize.ts                # question tabs:   CSV text -> NormalizedData (+ upload tab detection)
+/src/data/normalizeCapabilities.ts    # capability tabs: CSV text -> CapabilityData
 /src/data/normalize.test.ts
 /src/data/normalizeCapabilities.test.ts
 /src/data/questions.json              # generated, committed
@@ -432,6 +454,7 @@ question/capability links, and comments whose target is not in the displayed dat
 /src/app.render.test.ts               # whole-app render smoke test (happy-dom)
 /src/sheetSource.ts                   # live Google Sheet loader (network I/O; validates via dataset.ts)
 /src/sheetSource.test.ts
+/src/sheetTabs.ts                     # the live sheet's tab gids (printed by SheetSetup.gs)
 /src/comments/types.ts                # the comment data contract
 /src/comments/client.ts               # transport to the Apps Script store (the only network write)
 /src/comments/resolve.ts              # comments -> targets in the active dataset; orphan detection
@@ -441,7 +464,8 @@ question/capability links, and comments whose target is not in the displayed dat
 /src/components/
 /src/styles/
 /apps-script/Comments.gs              # the comment store; deployed by hand, checked in for review
-/apps-script/README.md                # how to deploy and moderate it
+/apps-script/SheetSetup.gs            # data sheet guard rails: dropdowns, ID rules, Checks tab; run by hand
+/apps-script/README.md                # how to deploy, moderate and set up both
 /src/vite-env.d.ts                    # typing for VITE_* build-time configuration
 /.github/workflows/deploy.yml
 README.md
@@ -491,25 +515,26 @@ unless corrected:
 5. **Paraphrased link references were matched, not dropped.** Three upstream references in the raw
    export name a question by paraphrase rather than exact text: `Phone number` → `Phone`,
    `Preferred Language` → `Primary language`, `Disability status` → `Disabled`. These were matched
-   by hand in the cleaned CSV and the assumption recorded in that row's `Data Quality Notes`. The
-   normalizer itself still does no fuzzy matching. If any of these three is wrong, fix the CSV.
+   by hand in the cleaned CSV and the assumption recorded in that row's `Data Quality Notes`.
+   Links are now by ID (Section 2), so the matches are carried as rows of the Question links tab.
+   If any of these three is wrong, delete or change that row.
 6. **`SAP` is carried as its bare acronym** because the source never expands it. Confirm what it
    stands for before it appears in anything stakeholder-facing.
 7. **`Pierce SHUTTLE`**, named in the question "Are you registered with Pierce SHUTTLE", is not on
    the agency roster. Whether it is the roster's `Pierce Runner` or a separate Pierce County
    program is unresolved.
-8. **`Community Van` is on the roster but has no intake data.** It appears in
-   `data/capabilities.csv` and asks no questions in the intake sheet. Rather than omit it, views
+8. **`Community Van` is on the roster but has no intake data.** It has capability answers but asks
+   no questions in the intake data. Rather than omit it, views
    that list agencies per question derive their population from the question data, so it does not
    appear as "does not ask" on every question; the capabilities coverage view names the gap
    explicitly instead. Confirm whether its intake questions simply weren't surveyed.
 9. **Agency `kind` classification is an assumption.** `ORCA`, `ORCA (Senior)`, `ORCA (Disabled)`,
    `ORCA LIFT` and `SAP` are treated as fare/pass programs and `Metro Transit Instruction` as
    travel training, meaning vehicle capabilities are reported as "not applicable" rather than as a
-   survey gap. The evidence is that `capabilities.csv` surveyed exactly the ride providers and none
-   of these. If any of them does operate vehicles, correct `Kind` in the roster
+   survey gap. The evidence is that the capability survey went to exactly the ride providers and
+   none of these. If any of them does operate vehicles, correct `Kind` in the roster
    (`data/agencies.csv`, or the Agencies tab of the live sheet).
-10. **The question → capability map is editorial.** Nothing in either CSV asserts that
+10. **The question → capability map is editorial.** Nothing in the other tabs asserts that
     "Do you require portable Oxygen" exists to determine the "Portable Oxygen" capability; a human
     claimed it in `data/question-capability-map.csv`, with the reasoning in each row's `Note`.
     Mappings deliberately *not* made, because they were arguable rather than clear: "Do you have
@@ -531,19 +556,19 @@ unless corrected:
     non-responding agencies are chased.
 13. **`Mailing address same as home address?` was added, not surveyed.** It existed only as a
     reference from the `Home address` and `Mailing address` rows. It was added deliberately to
-    both `by-question.csv` and `eligibility-questions.csv` as a question in its own right, which
+    both `by-question.csv` and the cleaned data as a question in its own right, which
     is why `by-question.csv` is described in Section 2 as a maintained question bank rather than
     a frozen export. Because the survey never asked it, it carries no requirement levels or proof
-    burden and its agency columns are blank; the gap is in the survey, not in the sheet. It is
+    burden and has no Requirements rows; the gap is in the survey, not in the sheet. It is
     recorded here so a later reader does not mistake the blank row for a parsing failure, and so
     the one open question stays visible: ask the agencies how they handle it, and the columns can
-    be filled in.
+    be added.
 14. **The live sheet's terms.** Assumed rather than confirmed:
     - *Published means public.* "Publish to web" makes each data tab readable by anyone with its
       URL, and the URLs ship in the bundle. This sharpens item 3: the data was already public on
       the deployed site, but staff now edit it in a public document, and should know that.
     - *"Publish to web" over other endpoints.* Chosen because it returns exactly what a download
-      would and can expose only the four data tabs. Its cost is the ~5-minute cache; the `gviz`
+      would and can expose only the seven data tabs. Its cost is the ~5-minute cache; the `gviz`
       endpoint is fresher but guesses column types and can silently blank cells, and `export`
       is not reliably readable cross-origin from a browser.
     - *Staff own the roster, including `Kind`.* Item 9's classification is now editable by
@@ -552,5 +577,21 @@ unless corrected:
     - *The snapshot is refreshed by hand* (`npm run pull-sheet`). Between refreshes, readers who
       act quickly are offered newer data rather than shown it. Automating the refresh is possible
       (a scheduled workflow) but not built.
-    - *Rewording a question in the sheet orphans its comments* (Section 4) immediately. That is
-      displayed correctly, but easier editing makes it more frequent.
+    - *IDs are permanent by convention, not by force.* Rewording a question keeps its comments,
+      because the ID is separate from the text (Section 4). Changing an ID still orphans them;
+      the sheet warns before an ID is edited, but cannot forbid it.
+15. **Decisions taken in converting to the sheet layout.**
+    - *ORCA on `Phone` is recorded as Required.* The survey listed ORCA as both Required and
+      Optional, which one row per question and agency cannot hold. Required is the stricter of the
+      two and what the summary strip already showed, so nothing displayed changed except the
+      requirements table losing its "Optional" line; the row's Data Quality Notes say so. Confirm
+      with ORCA and fix the Requirements row if it is Optional.
+    - *Links are now shown from both ends.* Of the 19 links, the export recorded 17 on one
+      question only; they now also appear on the other (e.g. `Accessibility needs` now lists the five
+      questions that name it as upstream). This is the layout working as intended, not new data;
+      if a link should not exist, delete its row.
+    - *Six requirement gaps are kept, not filled.* Where an agency had a Verification but no
+      Required/Optional entry (bare `ORCA` on Email, Home address and Mailing address; ORCA on
+      Income; ORCA and Access Paratransit on "Is the disability temporary or permanent"), the
+      Requirements row has `Asked` blank. Each needs the agency to say whether it asks the
+      question at all.

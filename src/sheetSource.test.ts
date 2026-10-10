@@ -1,23 +1,24 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadSheetDataset, readSheetConfig, SHEET_TIMEOUT_MS, type SheetUrls } from "./sheetSource";
+import { SOURCE_FILES, SOURCE_ROLES } from "./data/dataset";
+import {
+  loadSheetDataset,
+  readSheetConfig,
+  SHEET_TIMEOUT_MS,
+  type SheetTabs,
+  type SheetUrls,
+} from "./sheetSource";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf-8");
 
-const URLS: SheetUrls = {
-  agencies: "https://sheet.test/agencies",
-  questions: "https://sheet.test/questions",
-  capabilities: "https://sheet.test/capabilities",
-  capabilityMap: "https://sheet.test/map",
-};
+const URLS = Object.fromEntries(
+  SOURCE_ROLES.map((role) => [role, `https://sheet.test/${role}`]),
+) as SheetUrls;
 
 /** The committed CSVs, served as if they were the published tabs. */
-const TABS: Record<string, string> = {
-  [URLS.agencies]: read("../data/agencies.csv"),
-  [URLS.questions]: read("../data/eligibility-questions.csv"),
-  [URLS.capabilities]: read("../data/capabilities.csv"),
-  [URLS.capabilityMap]: read("../data/question-capability-map.csv"),
-};
+const TABS: Record<string, string> = Object.fromEntries(
+  SOURCE_ROLES.map((role) => [URLS[role], read(`../data/${SOURCE_FILES[role]}`)]),
+);
 
 function serveTabs(overrides: Record<string, () => Response> = {}) {
   const fetchMock = vi.fn((url: string) => {
@@ -40,37 +41,61 @@ afterEach(() => {
 });
 
 describe("readSheetConfig", () => {
-  const all = {
-    VITE_SHEET_AGENCIES_CSV_URL: URLS.agencies,
-    VITE_SHEET_QUESTIONS_CSV_URL: URLS.questions,
-    VITE_SHEET_CAPABILITIES_CSV_URL: URLS.capabilities,
-    VITE_SHEET_CAPABILITY_MAP_CSV_URL: URLS.capabilityMap,
-  };
+  const PUBLISHED = "https://docs.google.com/spreadsheets/d/e/2PACX-abc123/pub";
+  const wired = Object.fromEntries(
+    SOURCE_ROLES.map((role, i) => [role, { name: role, gid: i * 100 }]),
+  ) as SheetTabs;
 
-  it("is disabled when no URL is set — the snapshot-only build", () => {
-    expect(readSheetConfig({})).toEqual({ status: "disabled" });
-    expect(readSheetConfig({ VITE_SHEET_AGENCIES_CSV_URL: "  " })).toEqual({ status: "disabled" });
+  it("is disabled when no published URL is set — the snapshot-only build", () => {
+    expect(readSheetConfig({}, wired)).toEqual({ status: "disabled" });
+    expect(readSheetConfig({ VITE_SHEET_PUBLISHED_URL: "  " }, wired)).toEqual({
+      status: "disabled",
+    });
   });
 
-  it("is enabled with all four URLs", () => {
-    expect(readSheetConfig(all)).toEqual({ status: "enabled", urls: URLS });
+  it("builds one CSV URL per tab from the published URL and the gids", () => {
+    const config = readSheetConfig({ VITE_SHEET_PUBLISHED_URL: PUBLISHED }, wired);
+    expect(config.status === "enabled" && config.urls.requirements).toBe(
+      `${PUBLISHED}?gid=200&single=true&output=csv`,
+    );
   });
 
-  it("names what is missing when only some URLs are set, rather than mixing sources", () => {
-    const config = readSheetConfig({ ...all, VITE_SHEET_CAPABILITY_MAP_CSV_URL: "" });
-    expect(config.status).toBe("misconfigured");
+  it("accepts the link however it was copied: as /pubhtml, or with a query string", () => {
+    for (const copied of [
+      `${PUBLISHED}html`,
+      `${PUBLISHED}?output=csv`,
+      `${PUBLISHED}html#gid=0`,
+    ]) {
+      const config = readSheetConfig({ VITE_SHEET_PUBLISHED_URL: copied }, wired);
+      expect(config.status === "enabled" && config.urls.agencies).toBe(
+        `${PUBLISHED}?gid=0&single=true&output=csv`,
+      );
+    }
+  });
+
+  it("rejects a link that is not a published one, such as the editing URL", () => {
+    const config = readSheetConfig(
+      { VITE_SHEET_PUBLISHED_URL: "https://docs.google.com/spreadsheets/d/abc123/edit" },
+      wired,
+    );
+    expect(config.status === "misconfigured" && config.message).toMatch(/ending in \/pub/);
+  });
+
+  it("names the tabs with no gid rather than mixing live and snapshot tabs", () => {
+    const partial = { ...wired, questionLinks: { name: "Question links", gid: null } };
+    const config = readSheetConfig({ VITE_SHEET_PUBLISHED_URL: PUBLISHED }, partial);
     expect(config.status === "misconfigured" && config.message).toMatch(
-      /missing VITE_SHEET_CAPABILITY_MAP_CSV_URL/,
+      /no gid for Question links in src\/sheetTabs.ts/,
     );
   });
 });
 
 describe("loadSheetDataset", () => {
-  it("fetches all four tabs and normalizes them as one dataset", async () => {
+  it("fetches every tab and normalizes them as one dataset", async () => {
     const fetchMock = serveTabs();
     const dataset = await loadSheetDataset(URLS);
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(SOURCE_ROLES.length);
     expect(dataset.data).toEqual(JSON.parse(read("./data/questions.json")));
     expect(dataset.capabilities).toEqual(JSON.parse(read("./data/capabilities.json")));
   });
@@ -86,11 +111,13 @@ describe("loadSheetDataset", () => {
   });
 
   it("uses the sheet's own roster, so an agency added there resolves", async () => {
-    const roster = `${TABS[URLS.agencies] ?? ""}New Agency,Ride provider,,\n`;
-    const questions = `${TABS[URLS.questions] ?? ""}A new question,New Agency,,,,,,\n`;
+    const roster = `${TABS[URLS.agencies] ?? ""}New Agency,Ride provider,,,\n`;
+    const questions = `${TABS[URLS.questions] ?? ""}a-new-question,A new question,\n`;
+    const requirements = `${TABS[URLS.requirements] ?? ""}a-new-question,New Agency,Required,,\n`;
     serveTabs({
       [URLS.agencies]: () => new Response(roster),
       [URLS.questions]: () => new Response(questions),
+      [URLS.requirements]: () => new Response(requirements),
     });
 
     const dataset = await loadSheetDataset(URLS);
@@ -100,8 +127,8 @@ describe("loadSheetDataset", () => {
   });
 
   it("rejects the whole sheet when one tab fails validation", async () => {
-    const questions = `${TABS[URLS.questions] ?? ""}A new question,Unlisted Agency,,,,,,\n`;
-    serveTabs({ [URLS.questions]: () => new Response(questions) });
+    const requirements = `${TABS[URLS.requirements] ?? ""}phone,Unlisted Agency,Required,,\n`;
+    serveTabs({ [URLS.requirements]: () => new Response(requirements) });
     await expect(loadSheetDataset(URLS)).rejects.toThrow(
       /Unrecognized agency name "Unlisted Agency"/,
     );

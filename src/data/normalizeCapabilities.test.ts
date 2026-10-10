@@ -1,203 +1,150 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseAgencyRoster } from "./agencies";
 import {
-  normalizeCapabilitiesCsv as normalizeWithRoster,
-  parseCapabilityValue,
+  normalizeCapabilities,
   resolveQuestionCapabilityLinks,
+  type CapabilitySourceTexts,
 } from "./normalizeCapabilities";
 import type { IntakeQuestion } from "./types";
 
-/** The committed roster, so agency spellings are checked against the real alias table. */
+/** Two surveyed providers, one never surveyed, and a fare program. */
 const ROSTER = parseAgencyRoster(
-  readFileSync(new URL("../../data/agencies.csv", import.meta.url), "utf-8"),
+  [
+    "Agency,Kind,Aliases,Capability survey,Note",
+    "Hyde Shuttle,Ride provider,,Returned,",
+    "Sound Generations VTS,Ride provider,SG VTS,Returned,",
+    "Pierce Runner,Ride provider,,,",
+    "ORCA,Fare program,,,",
+  ].join("\n"),
 );
-const normalizeCapabilitiesCsv = (matrix: string, map: string) =>
-  normalizeWithRoster(matrix, map, ROSTER);
 
-const MATRIX_HEADER = "Agency Name,Wheelchair Accessible,Interpretation Support";
-const MAP_HEADER = "Question,Capability,Note";
+const CAPABILITIES = "ID,Label\nwheelchair-accessible,Wheelchair Accessible\nlift,Lift";
+const ANSWERS_HEADER = "Agency,Capability ID,Answer,Agency's wording";
+const MAP_HEADER = "Question ID,Capability ID,Note";
 
-function question(id: string, text: string): IntakeQuestion {
-  return { id, text, requirements: [], upstreamRefs: [], downstreamRefs: [] };
+function sources(rows: Partial<{ capabilities: string; answers: string[]; map: string[] }> = {}) {
+  const texts: CapabilitySourceTexts = {
+    capabilities: rows.capabilities ?? CAPABILITIES,
+    providerCapabilities: [ANSWERS_HEADER, ...(rows.answers ?? [])].join("\n"),
+    capabilityMap: [MAP_HEADER, ...(rows.map ?? [])].join("\n"),
+  };
+  return normalizeCapabilities(texts, ROSTER);
 }
 
-describe("parseCapabilityValue", () => {
-  it("treats a blank cell as unknown rather than as a 'no'", () => {
-    expect(parseCapabilityValue("")).toEqual({ value: "unknown" });
-    expect(parseCapabilityValue("   ")).toEqual({ value: "unknown" });
+function question(id: string): IntakeQuestion {
+  return { id, text: id, requirements: [], upstreamRefs: [], downstreamRefs: [] };
+}
+
+describe("Capabilities tab", () => {
+  it("takes ids and labels from the tab, so a label can be reworded without changing the id", () => {
+    expect(sources({ capabilities: "ID,Label\nlift,Wheelchair lift" }).capabilities).toEqual([
+      { id: "lift", label: "Wheelchair lift" },
+    ]);
   });
 
-  it("accepts yes/no in any casing", () => {
-    expect(parseCapabilityValue("Yes")).toEqual({ value: "yes" });
-    expect(parseCapabilityValue("yes")).toEqual({ value: "yes" });
-    expect(parseCapabilityValue("No")).toEqual({ value: "no" });
-    expect(parseCapabilityValue("no")).toEqual({ value: "no" });
+  it("rejects a malformed or duplicate id", () => {
+    expect(() => sources({ capabilities: "ID,Label\nWheelchair,Wheelchair" })).toThrow(
+      /ID "Wheelchair" must be lowercase words/,
+    );
+    expect(() => sources({ capabilities: "ID,Label\nlift,Lift\nlift,Ramp" })).toThrow(
+      /duplicate capability ID "lift"/,
+    );
   });
 
-  it("keeps a parenthetical qualifier alongside a yes/no value", () => {
-    expect(parseCapabilityValue("Yes (1)")).toEqual({ value: "yes", qualifier: "1" });
-    expect(parseCapabilityValue("Yes (Language line)")).toEqual({
-      value: "yes",
-      qualifier: "Language line",
-    });
-  });
-
-  it("classifies a hedged or conditional answer as conditional, preserving the wording", () => {
-    expect(parseCapabilityValue("Probably yes")).toEqual({
-      value: "conditional",
-      qualifier: "Probably yes",
-    });
-    expect(parseCapabilityValue("Depends on vehicle")).toEqual({
-      value: "conditional",
-      qualifier: "Depends on vehicle",
-    });
+  it("rejects a capability with no label", () => {
+    expect(() => sources({ capabilities: "ID,Label\nlift," })).toThrow(/"lift" has no label/);
   });
 });
 
-describe("normalizeCapabilitiesCsv", () => {
-  it("derives capabilities from the header and one profile per agency row", () => {
-    const data = normalizeCapabilitiesCsv(
-      [MATRIX_HEADER, "Hyde Shuttle,Yes,Yes (Language line)"].join("\n"),
-      MAP_HEADER,
-    );
-
-    expect(data.capabilities).toEqual([
-      { id: "wheelchair-accessible", label: "Wheelchair Accessible" },
-      { id: "interpretation-support", label: "Interpretation Support" },
-    ]);
-    expect(data.profiles).toEqual([
-      {
-        agencyId: "hyde-shuttle",
-        capabilities: [
-          { capabilityId: "wheelchair-accessible", value: "yes" },
-          { capabilityId: "interpretation-support", value: "yes", qualifier: "Language line" },
-        ],
-      },
+describe("Provider capabilities tab", () => {
+  it("builds a full profile per surveyed agency, in capability order, with unanswered cells unknown", () => {
+    const { profiles } = sources({ answers: ["Hyde Shuttle,lift,Yes,"] });
+    expect(profiles.find((p) => p.agencyId === "hyde-shuttle")?.capabilities).toEqual([
+      { capabilityId: "wheelchair-accessible", value: "unknown" },
+      { capabilityId: "lift", value: "yes" },
     ]);
   });
 
-  it("resolves the capability sheet's own agency spellings through the shared alias table", () => {
-    const data = normalizeCapabilitiesCsv([MATRIX_HEADER, "SG VTS,Yes,"].join("\n"), MAP_HEADER);
-    expect(data.profiles[0]?.agencyId).toBe("sound-generations-vts");
+  it("gives a surveyed agency with no answers a profile of unknowns, and an unsurveyed one none", () => {
+    // "Returned the survey blank" and "never surveyed" are different facts, and the coverage
+    // view reports them differently; the roster states which, rather than leaving it inferred.
+    const { profiles } = sources();
+    expect(profiles.map((p) => p.agencyId)).toEqual(["hyde-shuttle", "sound-generations-vts"]);
+    expect(profiles[1]?.capabilities.every((c) => c.value === "unknown")).toBe(true);
   });
 
-  it("keeps an all-blank row as a profile of unknowns, distinct from having no row at all", () => {
-    const data = normalizeCapabilitiesCsv([MATRIX_HEADER, "Homage TAP,,"].join("\n"), MAP_HEADER);
-    expect(data.profiles).toHaveLength(1);
-    expect(data.profiles[0]?.capabilities.every((c) => c.value === "unknown")).toBe(true);
-  });
-
-  it("rejects a matrix whose first column is not the agency name", () => {
-    expect(() => normalizeCapabilitiesCsv("Provider,Lift\nHyde Shuttle,Yes", MAP_HEADER)).toThrow(
-      /must start with an "Agency Name" column/,
-    );
-  });
-
-  it("rejects an unrecognized agency rather than silently dropping the row", () => {
-    expect(() =>
-      normalizeCapabilitiesCsv([MATRIX_HEADER, "Some New Agency,Yes,"].join("\n"), MAP_HEADER),
-    ).toThrow(/Unrecognized agency name/);
-  });
-
-  it("ignores a trailing column with neither a header nor any answers", () => {
-    // A spreadsheet tab exported as CSV can carry empty columns past the data. Header-mode
-    // parsing would name them "_1", "_2" and report them as capabilities.
-    const data = normalizeCapabilitiesCsv(
-      [`${MATRIX_HEADER},,`, "Hyde Shuttle,Yes,No,,"].join("\n"),
-      MAP_HEADER,
-    );
-    expect(data.capabilities.map((c) => c.id)).toEqual([
-      "wheelchair-accessible",
-      "interpretation-support",
+  it("keeps the agency's own wording alongside the canonical answer", () => {
+    const { profiles } = sources({
+      answers: ["Hyde Shuttle,lift,Yes,1", "SG VTS,lift,Conditional,Depends on vehicle"],
+    });
+    expect(profiles.map((p) => p.capabilities[1])).toEqual([
+      { capabilityId: "lift", value: "yes", qualifier: "1" },
+      { capabilityId: "lift", value: "conditional", qualifier: "Depends on vehicle" },
     ]);
-    expect(data.profiles[0]?.capabilities).toHaveLength(2);
   });
 
-  it("rejects a column that has answers but no capability name", () => {
-    expect(() =>
-      normalizeCapabilitiesCsv(
-        [`${MATRIX_HEADER},`, "Hyde Shuttle,Yes,No,Yes"].join("\n"),
-        MAP_HEADER,
-      ),
-    ).toThrow(/column 4 has answers but no capability name/);
+  it("resolves agency spellings through the roster", () => {
+    const { profiles } = sources({ answers: ["SG VTS,lift,No,"] });
+    expect(profiles[1]?.capabilities[1]?.value).toBe("no");
   });
 
-  it("reads a header that starts with a byte-order mark", () => {
-    const data = normalizeCapabilitiesCsv(
-      ["\uFEFF" + MATRIX_HEADER, "Hyde Shuttle,Yes,"].join("\n"),
-      MAP_HEADER,
+  it("rejects an answer outside the dropdown", () => {
+    expect(() => sources({ answers: ["Hyde Shuttle,lift,Probably yes,"] })).toThrow(
+      /Answer is "Probably yes". Expected one of: "Yes", "No", "Conditional"/,
     );
-    expect(data.profiles[0]?.agencyId).toBe("hyde-shuttle");
   });
 
-  it("rejects a duplicate agency row", () => {
-    expect(() =>
-      normalizeCapabilitiesCsv(
-        [MATRIX_HEADER, "Hyde Shuttle,Yes,", "Hyde Shuttle,No,"].join("\n"),
-        MAP_HEADER,
-      ),
-    ).toThrow(/more than one row for agency/);
-  });
-
-  it("rejects a question/capability map naming a capability that has no column", () => {
-    expect(() =>
-      normalizeCapabilitiesCsv(
-        [MATRIX_HEADER, "Hyde Shuttle,Yes,"].join("\n"),
-        [MAP_HEADER, "Accessibility needs,Hovercraft Accessible,"].join("\n"),
-      ),
-    ).toThrow(/unknown capability "Hovercraft Accessible"/);
-  });
-
-  it("carries the map's editorial note through, omitting it when blank", () => {
-    const data = normalizeCapabilitiesCsv(
-      [MATRIX_HEADER, "Hyde Shuttle,Yes,"].join("\n"),
-      [
-        MAP_HEADER,
-        "Accessibility needs,Wheelchair Accessible,Editorial claim not in the source",
-        "Do you need an interpreter,Interpretation Support,",
-      ].join("\n"),
+  it("rejects an answer from an agency the roster says was not surveyed", () => {
+    expect(() => sources({ answers: ["Pierce Runner,lift,Yes,"] })).toThrow(
+      /"Pierce Runner" has an answer, but the Agencies tab does not mark its Capability survey as Returned/,
     );
+  });
 
-    expect(data.questionLinks).toEqual([
-      {
-        questionText: "Accessibility needs",
-        capabilityId: "wheelchair-accessible",
-        note: "Editorial claim not in the source",
-      },
-      { questionText: "Do you need an interpreter", capabilityId: "interpretation-support" },
+  it("rejects an unknown capability id and a second answer for the same cell", () => {
+    expect(() => sources({ answers: ["Hyde Shuttle,ramp,Yes,"] })).toThrow(
+      /unknown Capability ID "ramp"/,
+    );
+    expect(() => sources({ answers: ["Hyde Shuttle,lift,Yes,", "Hyde Shuttle,lift,No,"] })).toThrow(
+      /a second answer from "Hyde Shuttle" for "lift"/,
+    );
+  });
+});
+
+describe("Question-capability map tab", () => {
+  it("links by id, carrying the editorial note and omitting it when blank", () => {
+    const { questionLinks } = sources({
+      map: ["accessibility-needs,lift,Editorial claim", "do-you-need-a-lift,lift,"],
+    });
+    expect(questionLinks).toEqual([
+      { questionId: "accessibility-needs", capabilityId: "lift", note: "Editorial claim" },
+      { questionId: "do-you-need-a-lift", capabilityId: "lift" },
     ]);
+  });
+
+  it("rejects an unknown capability, but leaves question ids to be resolved at runtime", () => {
+    expect(() => sources({ map: ["accessibility-needs,hovercraft,"] })).toThrow(
+      /unknown Capability ID "hovercraft"/,
+    );
+    expect(() => sources({ map: ["no-such-question,lift,"] })).not.toThrow();
   });
 });
 
 describe("resolveQuestionCapabilityLinks", () => {
   const links = [
-    { questionText: "Accessibility needs", capabilityId: "lift" },
-    { questionText: "Accessibility needs", capabilityId: "ramp" },
-    { questionText: "A question that was renamed", capabilityId: "lift" },
+    { questionId: "accessibility-needs", capabilityId: "lift" },
+    { questionId: "accessibility-needs", capabilityId: "wheelchair-accessible" },
+    { questionId: "a-removed-question", capabilityId: "lift" },
   ];
 
-  it("groups links by the id of the question they match", () => {
+  it("groups links by the question they match", () => {
     const { byQuestionId } = resolveQuestionCapabilityLinks(links, [
-      question("accessibility-needs", "Accessibility needs"),
+      question("accessibility-needs"),
     ]);
     expect(byQuestionId.get("accessibility-needs")).toHaveLength(2);
   });
 
   it("reports a link whose question is absent instead of dropping it silently", () => {
-    const { unmatched } = resolveQuestionCapabilityLinks(links, [
-      question("accessibility-needs", "Accessibility needs"),
-    ]);
-    expect(unmatched).toEqual([
-      { questionText: "A question that was renamed", capabilityId: "lift" },
-    ]);
-  });
-
-  it("loses every link when the question set no longer contains any of them, without throwing", () => {
-    const { byQuestionId, unmatched } = resolveQuestionCapabilityLinks(links, [
-      question("phone", "Phone"),
-    ]);
-    expect(byQuestionId.size).toBe(0);
-    expect(unmatched).toHaveLength(3);
+    const { unmatched } = resolveQuestionCapabilityLinks(links, [question("accessibility-needs")]);
+    expect(unmatched).toEqual([{ questionId: "a-removed-question", capabilityId: "lift" }]);
   });
 });

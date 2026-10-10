@@ -11,7 +11,7 @@ export type DataSource =
 export function renderDataSourceBar(options: {
   source: DataSource;
   error: string | null;
-  onUpload: (file: File) => void;
+  onUpload: (files: File[]) => void;
   onReset: () => void;
 }): HTMLElement {
   const { source, error, onUpload, onReset } = options;
@@ -20,18 +20,20 @@ export function renderDataSourceBar(options: {
     type: "file",
     id: "data-source-file",
     accept: ".csv,text/csv",
+    // The Questions, Requirements and Question links tabs, exported as CSV, chosen together.
+    multiple: true,
     onChange: (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) onUpload(file);
+      const files = [...((e.target as HTMLInputElement).files ?? [])];
+      if (files.length > 0) onUpload(files);
     },
   });
 
   const sourceLabel =
     source.kind === "bundled"
-      ? "Showing the bundled dataset (data/eligibility-questions.csv)."
+      ? "Showing the bundled dataset (the CSVs in data/)."
       : source.kind === "sheet"
         ? "Showing the live Google Sheet."
-        : `Showing uploaded file "${source.fileName}" — this preview lives only in your browser ` +
+        : `Showing uploaded files ${source.fileName} — this preview lives only in your browser ` +
           "for this session and is discarded on reload.";
 
   return h(
@@ -40,7 +42,11 @@ export function renderDataSourceBar(options: {
     h(
       "div",
       { className: "data-source__controls" },
-      h("label", { for: "data-source-file" }, "Preview a replacement CSV"),
+      h(
+        "label",
+        { for: "data-source-file" },
+        "Preview replacement CSVs (Questions, Requirements and Question links tabs)",
+      ),
       fileInput,
       source.kind === "uploaded"
         ? h(

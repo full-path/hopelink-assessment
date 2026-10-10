@@ -1,10 +1,10 @@
 import type { CapabilityData, NormalizedData } from "./types";
 import { parseAgencyRoster } from "./agencies";
-import { normalizeCsv } from "./normalize";
-import { normalizeCapabilitiesCsv } from "./normalizeCapabilities";
+import { normalizeQuestions, type QuestionSourceTexts } from "./normalize";
+import { normalizeCapabilities, type CapabilitySourceTexts } from "./normalizeCapabilities";
 
 /**
- * All four source CSVs → everything the app displays, in one call.
+ * Every tab → everything the app displays, in one call.
  *
  * This is the single entry point for a *whole* dataset, used by both the build script (from the
  * snapshot CSVs in `/data`) and the live sheet loader (from the published Google Sheet). Routing
@@ -14,13 +14,32 @@ import { normalizeCapabilitiesCsv } from "./normalizeCapabilities";
  * The roster is parsed first because both normalizers resolve agency names against it.
  */
 
-/** The raw CSV text of each source, keyed by role. The file/tab each comes from is the caller's concern. */
-export interface SourceTexts {
+/** The raw CSV text of each tab, keyed by role. The file/tab each comes from is the caller's concern. */
+export interface SourceTexts extends QuestionSourceTexts, CapabilitySourceTexts {
   agencies: string;
-  questions: string;
-  capabilities: string;
-  capabilityMap: string;
 }
+
+/** Every role, in the order tabs are listed to staff. */
+export const SOURCE_ROLES = [
+  "agencies",
+  "questions",
+  "requirements",
+  "questionLinks",
+  "capabilities",
+  "providerCapabilities",
+  "capabilityMap",
+] as const satisfies readonly (keyof SourceTexts)[];
+
+/** Each role's snapshot file in `/data`, which `pull-sheet` writes and `build-data` reads. */
+export const SOURCE_FILES: Record<keyof SourceTexts, string> = {
+  agencies: "agencies.csv",
+  questions: "questions.csv",
+  requirements: "requirements.csv",
+  questionLinks: "question-links.csv",
+  capabilities: "capabilities.csv",
+  providerCapabilities: "provider-capabilities.csv",
+  capabilityMap: "question-capability-map.csv",
+};
 
 export interface Dataset {
   data: NormalizedData;
@@ -30,7 +49,7 @@ export interface Dataset {
 export function normalizeDataset(sources: SourceTexts): Dataset {
   const agencies = parseAgencyRoster(sources.agencies);
   return {
-    data: normalizeCsv(sources.questions, agencies),
-    capabilities: normalizeCapabilitiesCsv(sources.capabilities, sources.capabilityMap, agencies),
+    data: normalizeQuestions(sources, agencies),
+    capabilities: normalizeCapabilities(sources, agencies),
   };
 }

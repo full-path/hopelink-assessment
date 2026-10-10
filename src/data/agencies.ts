@@ -1,5 +1,5 @@
-import Papa from "papaparse";
 import type { Agency, AgencyKind } from "./types";
+import { cell, dropdown, parseTab } from "./tabs";
 import { normalizeWhitespace, slugify } from "./text";
 
 /**
@@ -24,70 +24,38 @@ import { normalizeWhitespace, slugify } from "./text";
 /** Takes any raw agency string from a source CSV and returns its canonical id, or throws. */
 export type AgencyResolver = (raw: string) => string;
 
-interface RosterRow {
-  Agency: string;
-  Kind: string;
-  Aliases?: string;
-  Note?: string;
-}
-
-const ROSTER_REQUIRED_COLUMNS: (keyof RosterRow)[] = ["Agency", "Kind"];
+const ROSTER_COLUMNS = ["Agency", "Kind", "Aliases", "Capability survey"];
 
 /**
- * The words staff type in the Kind column, mapped to the contract's values. Matched
- * case-insensitively with spaces and underscores treated alike, so both the sheet's
- * "Ride provider" and the contract's own "ride_provider" are accepted.
+ * The words staff pick in the Kind column, mapped to the contract's values. Matched
+ * case-insensitively; the contract's own spelling (`ride_provider`) is accepted too.
  */
-const KIND_BY_LABEL = new Map<string, AgencyKind>([
-  ["ride provider", "ride_provider"],
-  ["fare program", "fare_program"],
-  ["travel training", "travel_training"],
-]);
+const KIND = {
+  "Ride provider": "ride_provider",
+  "Fare program": "fare_program",
+  "Travel training": "travel_training",
+} as const satisfies Record<string, AgencyKind>;
 
-function parseKind(raw: string, agencyName: string): AgencyKind {
-  const label = normalizeWhitespace(raw.replace(/_/g, " ")).toLowerCase();
-  const kind = KIND_BY_LABEL.get(label);
-  if (kind === undefined) {
-    throw new Error(
-      `Agency "${agencyName}" has Kind "${raw}". Expected one of: ` +
-        ["Ride provider", "Fare program", "Travel training"].map((k) => `"${k}"`).join(", "),
-    );
-  }
-  return kind;
-}
+/** Blank means not surveyed; there is no third state worth a word of its own. */
+const CAPABILITY_SURVEY = { Returned: "returned" } as const;
 
 /**
- * `data/agencies.csv` → the roster. One row per agency; `Aliases` is semicolon-delimited, the
- * same convention every other multi-value cell in `/data` uses where a comma would be ambiguous.
- * The display name is always an alias of itself, so a row needs no aliases to be resolvable.
+ * The Agencies tab → the roster. One row per agency; `Aliases` is semicolon-delimited, the same
+ * convention the sheet uses wherever a comma would be ambiguous. The display name is always an
+ * alias of itself, so a row needs no aliases to be resolvable.
  *
  * The id is the slug of the display name. Nothing persistent is keyed by agency id (comments
- * target questions and capabilities), so renaming an agency is safe.
+ * target questions and capabilities, and the other tabs name agencies by name), so renaming an
+ * agency is safe — provided its old name is kept as an alias or the other tabs are updated.
  */
 export function parseAgencyRoster(csvText: string): Agency[] {
-  const result = Papa.parse<RosterRow>(csvText, { header: true, skipEmptyLines: true });
-  if (result.errors.length > 0) {
-    const details = result.errors
-      .map((e) => `${e.type}: ${e.message} (row ${String(e.row)})`)
-      .join("\n");
-    throw new Error(`Agency roster parse errors:\n${details}`);
-  }
-
-  const header = result.meta.fields ?? [];
-  const missing = ROSTER_REQUIRED_COLUMNS.filter((column) => !header.includes(column));
-  if (missing.length > 0) {
-    throw new Error(
-      `Agency roster is missing expected column(s): ${missing.map((c) => `"${c}"`).join(", ")}`,
-    );
-  }
-
   const agencies: Agency[] = [];
   const seenIds = new Map<string, string>();
-  for (const row of result.data) {
-    const displayName = normalizeWhitespace(row.Agency);
-    if (!displayName) {
-      continue;
-    }
+
+  parseTab(csvText, "Agencies", ROSTER_COLUMNS).forEach((row, index) => {
+    const where = `Agencies tab, row ${String(index + 2)}`;
+    const displayName = cell(row, "Agency");
+    if (!displayName) throw new Error(`${where} has no agency name.`);
 
     const id = slugify(displayName);
     const existing = seenIds.get(id);
@@ -98,6 +66,10 @@ export function parseAgencyRoster(csvText: string): Agency[] {
     }
     seenIds.set(id, displayName);
 
+    const kindLabel = cell(row, "Kind").replace(/_/g, " ");
+    const kind = dropdown(kindLabel, KIND, () => `Agency "${displayName}": Kind`);
+    if (kind === null) throw new Error(`Agency "${displayName}" has no Kind.`);
+
     const aliases = (row.Aliases ?? "")
       .split(";")
       .map(normalizeWhitespace)
@@ -106,10 +78,16 @@ export function parseAgencyRoster(csvText: string): Agency[] {
     agencies.push({
       id,
       displayName,
-      kind: parseKind(row.Kind, displayName),
+      kind,
       aliases: [displayName, ...aliases.filter((alias) => alias !== displayName)],
+      capabilitySurvey:
+        dropdown(
+          cell(row, "Capability survey"),
+          CAPABILITY_SURVEY,
+          () => `Agency "${displayName}": Capability survey`,
+        ) ?? "not_surveyed",
     });
-  }
+  });
 
   if (agencies.length === 0) {
     throw new Error("Agency roster has no agencies.");

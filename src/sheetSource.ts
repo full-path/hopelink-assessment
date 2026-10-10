@@ -1,11 +1,13 @@
-import { normalizeDataset, type Dataset, type SourceTexts } from "./data/dataset";
+import { normalizeDataset, SOURCE_ROLES, type Dataset, type SourceTexts } from "./data/dataset";
+import { SHEET_TABS } from "./sheetTabs";
 
 /**
  * Reads the live dataset from a published Google Sheet — the one network read of intake data
  * the app makes, and the source staff edit day to day.
  *
- * Each of the sheet's four tabs is published to the web as CSV (File → Share → Publish to web)
- * and its URL supplied at build time; see README "Live data from a Google Sheet". The texts are
+ * The sheet's data tabs are published to the web as CSV (File → Share → Publish to web); the
+ * document's published URL is supplied at build time and the tabs are identified in
+ * `src/sheetTabs.ts`. See README "Live data from a Google Sheet". The texts are
  * normalized by `normalizeDataset`, the same function the build runs on `/data`, so the sheet is
  * held to the same strictness as a build: an unknown agency, a missing column or a duplicate
  * question rejects the whole sheet rather than displaying part of it.
@@ -14,26 +16,12 @@ import { normalizeDataset, type Dataset, type SourceTexts } from "./data/dataset
  * is `main.ts`'s decision, because that depends on what the reader is doing.
  */
 
-/** How long to wait for all four tabs before giving up and keeping the snapshot. */
+/** How long to wait for every tab before giving up and keeping the snapshot. */
 export const SHEET_TIMEOUT_MS = 15_000;
 
-/** The env var holding each tab's published-CSV URL. */
-export const SHEET_URL_VARS = {
-  agencies: "VITE_SHEET_AGENCIES_CSV_URL",
-  questions: "VITE_SHEET_QUESTIONS_CSV_URL",
-  capabilities: "VITE_SHEET_CAPABILITIES_CSV_URL",
-  capabilityMap: "VITE_SHEET_CAPABILITY_MAP_CSV_URL",
-} as const satisfies Record<keyof SourceTexts, string>;
-
-/** Human names for error messages, matching the tab names the README tells staff to use. */
-const TAB_NAMES: Record<keyof SourceTexts, string> = {
-  agencies: "Agencies",
-  questions: "Questions",
-  capabilities: "Capabilities",
-  capabilityMap: "Question-capability map",
-};
-
-export type SheetUrls = Record<keyof SourceTexts, string>;
+export type TabRole = keyof SourceTexts;
+export type SheetTabs = Record<TabRole, { name: string; gid: number | null }>;
+export type SheetUrls = Record<TabRole, string>;
 
 export type SheetConfig =
   | { status: "disabled" }
@@ -41,24 +29,46 @@ export type SheetConfig =
   | { status: "enabled"; urls: SheetUrls };
 
 /**
- * Reads the four URLs from build-time env. None set is a supported build (snapshot only, as
- * before). Some-but-not-all is a mistake worth saying out loud rather than half-honouring: the
- * tabs depend on one another — every tab resolves agency names against the Agencies tab — so
- * mixing live tabs with snapshot ones could pair a sheet edit with a roster that predates it.
+ * Builds each tab's CSV URL from the published document's address (`VITE_SHEET_PUBLISHED_URL`,
+ * the `…/pub` link from File → Share → Publish to web) and the gids in `src/sheetTabs.ts`.
+ *
+ * No URL is a supported build (snapshot only). A URL with any tab un-wired is a mistake worth
+ * saying out loud rather than half-honouring: the tabs depend on one another — every tab resolves
+ * agency names against the Agencies tab — so mixing live tabs with snapshot ones could pair a
+ * sheet edit with a roster that predates it.
  */
-export function readSheetConfig(env: Partial<Record<string, string>>): SheetConfig {
-  const entries = Object.entries(SHEET_URL_VARS) as [keyof SourceTexts, string][];
-  const values = entries.map(([role, name]) => [role, env[name]?.trim() ?? ""] as const);
-  const missing = entries.filter((_, i) => !values[i]?.[1]).map(([, name]) => name);
+export function readSheetConfig(
+  env: Partial<Record<string, string>>,
+  tabs: SheetTabs = SHEET_TABS,
+): SheetConfig {
+  const published = env.VITE_SHEET_PUBLISHED_URL?.trim() ?? "";
+  if (!published) return { status: "disabled" };
 
-  if (missing.length === entries.length) return { status: "disabled" };
-  if (missing.length > 0) {
+  // Accept the link however it was copied: with or without its query string or a trailing
+  // "/pubhtml" (the HTML view Google offers by default).
+  const base = published.split(/[?#]/)[0]?.replace(/\/pubhtml$/, "/pub") ?? "";
+  if (!/^https:\/\/docs\.google\.com\/spreadsheets\/d\/e\/[^/]+\/pub$/.test(base)) {
     return {
       status: "misconfigured",
-      message: `The live sheet is only partly configured; missing ${missing.join(", ")}.`,
+      message:
+        `VITE_SHEET_PUBLISHED_URL should be the "Publish to web" link, ending in /pub; ` +
+        `got "${published}".`,
     };
   }
-  return { status: "enabled", urls: Object.fromEntries(values) as SheetUrls };
+
+  const roles = SOURCE_ROLES;
+  const unwired = roles.filter((role) => tabs[role].gid === null).map((role) => tabs[role].name);
+  if (unwired.length > 0) {
+    return {
+      status: "misconfigured",
+      message: `The live sheet is only partly configured; no gid for ${unwired.join(", ")} in src/sheetTabs.ts.`,
+    };
+  }
+
+  const urls = Object.fromEntries(
+    roles.map((role) => [role, `${base}?gid=${String(tabs[role].gid)}&single=true&output=csv`]),
+  ) as SheetUrls;
+  return { status: "enabled", urls };
 }
 
 /**
@@ -66,8 +76,8 @@ export function readSheetConfig(env: Partial<Record<string, string>>): SheetConf
  * copy — it is not a request header, so the request stays CORS-simple. Google still caches
  * published output for a few minutes on its side; nothing here can shorten that.
  */
-async function fetchTab(role: keyof SourceTexts, url: string, signal: AbortSignal) {
-  const tab = TAB_NAMES[role];
+async function fetchTab(role: TabRole, url: string, signal: AbortSignal) {
+  const tab = SHEET_TABS[role].name;
   let response: Response;
   try {
     response = await fetch(url, { method: "GET", cache: "no-cache", signal });
@@ -96,7 +106,7 @@ async function fetchTab(role: keyof SourceTexts, url: string, signal: AbortSigna
   return text;
 }
 
-/** Fetches all four tabs in parallel, as raw CSV text. Used directly by `scripts/pull-sheet.ts`. */
+/** Fetches every tab in parallel, as raw CSV text. Used directly by `scripts/pull-sheet.ts`. */
 export async function fetchSheetTexts(urls: SheetUrls): Promise<SourceTexts> {
   const controller = new AbortController();
   const timer = setTimeout(() => {
@@ -104,19 +114,19 @@ export async function fetchSheetTexts(urls: SheetUrls): Promise<SourceTexts> {
   }, SHEET_TIMEOUT_MS);
 
   try {
-    const [agencies, questions, capabilities, capabilityMap] = await Promise.all([
-      fetchTab("agencies", urls.agencies, controller.signal),
-      fetchTab("questions", urls.questions, controller.signal),
-      fetchTab("capabilities", urls.capabilities, controller.signal),
-      fetchTab("capabilityMap", urls.capabilityMap, controller.signal),
-    ]);
-    return { agencies, questions, capabilities, capabilityMap };
+    const texts = await Promise.all(
+      SOURCE_ROLES.map((role) => fetchTab(role, urls[role], controller.signal)),
+    );
+    return Object.fromEntries(SOURCE_ROLES.map((role, i) => [role, texts[i] ?? ""])) as Record<
+      TabRole,
+      string
+    >;
   } finally {
     clearTimeout(timer);
   }
 }
 
-/** Fetches all four tabs and normalizes them as one dataset, or throws. */
+/** Fetches every tab and normalizes them as one dataset, or throws. */
 export async function loadSheetDataset(urls: SheetUrls): Promise<Dataset> {
   return normalizeDataset(await fetchSheetTexts(urls));
 }

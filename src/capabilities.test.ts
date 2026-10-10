@@ -23,7 +23,7 @@ function profile(agencyId: string, lift: string | null): AgencyCapabilityProfile
 }
 
 function agency(id: string, kind: Agency["kind"]): Agency {
-  return { id, displayName: id, kind, aliases: [id] };
+  return { id, displayName: id, kind, aliases: [id], capabilitySurvey: "returned" };
 }
 
 function question(id: string, asked: [string, RequirementLevel][]): IntakeQuestion {
@@ -94,7 +94,7 @@ describe("computeCapabilityVariance", () => {
 });
 
 describe("computeQuestionCapabilityInsight", () => {
-  const links = [{ questionText: "q", capabilityId: "lift" }];
+  const links = [{ questionId: "q", capabilityId: "lift" }];
   const varying = [profile("a", "yes"), profile("b", "no")];
   const uniform = [profile("a", "yes"), profile("b", "yes")];
   const providers = new Set(["a", "b", "c", "d"]);
