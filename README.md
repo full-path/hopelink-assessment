@@ -389,16 +389,56 @@ anything either source sheet asserts.
 
 ## Deployment
 
-`.github/workflows/deploy.yml` builds and deploys `dist/` to GitHub Pages on every push to `main`.
-It runs lint, tests, and the type-checked build before deploying — a red build never reaches Pages.
-The Vite `base` is set to `./` (relative) so the build doesn't need to know the GitHub repo name in
-advance.
+`.github/workflows/deploy.yml` publishes **two sites** from one GitHub Pages site:
 
-To enable Pages for this repo: **Settings → Pages → Source → GitHub Actions** (one-time, done by a
-repo admin in the GitHub UI — not something this workflow file can do on its own).
+| Site       | Branch    | URL                                         |
+| ---------- | --------- | ------------------------------------------- |
+| Production | `main`    | `https://<owner>.github.io/<repo>/`         |
+| Testing    | `testing` | `https://<owner>.github.io/<repo>/testing/` |
 
-The workflow passes `VITE_COMMENTS_ENDPOINT` from the `COMMENTS_ENDPOINT` repository **variable**
-(Settings → Secrets and variables → Actions → Variables). If it is unset the build still succeeds
-and deploys — commenting is simply absent from the deployed site. The `SHEET_PUBLISHED_URL`
-variable works the same way (see "Live data from a Google Sheet"): unset, the site shows the
-snapshot only. Changing the sheet does not need a deploy; changing which sheet does.
+A repository has only one Pages site, and every deploy replaces all of it, so a push to **either**
+branch builds **both** and deploys them together; deploying only the pushed branch would wipe the
+other. Each branch is linted, tested and type-checked with its own code, and a red build on
+either stops the deploy — the live sites keep serving their last good versions. Until a `testing`
+branch exists, runs deploy production alone. The Vite `base` is relative (`./`), which is what
+lets the same build work at the root and under `/testing/`.
+
+To try something on the testing site, push it to `testing` (e.g. `git push origin
+my-branch:testing --force`, if `testing` is a scratch branch). To promote it, merge to `main` as
+usual.
+
+### One-time setup (repo admin, in the GitHub UI)
+
+1. **Settings → Pages → Source → GitHub Actions.**
+2. **Settings → Environments → `github-pages` → Deployment branches and tags**: add `testing`.
+   Pages allows only the default branch to deploy by default, so without this every push to
+   `testing` fails at the deploy step.
+3. **Variables** (Settings → Secrets and variables → Actions → Variables) — variables, not
+   secrets, because the values are compiled into the public bundle:
+
+   | Variable                      | Used by    | Unset means                 |
+   | ----------------------------- | ---------- | --------------------------- |
+   | `COMMENTS_ENDPOINT`           | production | no commenting               |
+   | `SHEET_PUBLISHED_URL`         | production | the committed snapshot only |
+   | `TESTING_COMMENTS_ENDPOINT`   | testing    | no commenting               |
+   | `TESTING_SHEET_PUBLISHED_URL` | testing    | the committed snapshot only |
+
+   The testing site **never falls back to production's values**: leaving its variables unset gives
+   a testing site without comments and without the live sheet, rather than one whose testers'
+   comments land in the production store. To test commenting or the live sheet, deploy a second
+   comment store (`apps-script/README.md`) and a copy of the data sheet, and point the `TESTING_`
+   variables at them. A copied sheet's tabs must match the gids in `src/sheetTabs.ts` on the
+   `testing` branch — check them with `setupSheet`'s output, and update that file on `testing` if
+   they differ.
+
+Changing the sheet does not need a deploy; changing which sheet does.
+
+### Things to know
+
+- **The workflow that runs is the pushed branch's copy**, and it deploys both sites. Keep
+  `deploy.yml` the same on `main` and `testing`; an experiment with it on `testing` can break
+  production's deploy.
+- **Both sites are public.** Restricting who can see a Pages site needs GitHub Enterprise Cloud.
+- **Both sites share a browser origin**, so a comment passphrase saved on one is pre-filled on the
+  other. If the two stores use different passphrases, the wrong one is simply rejected and can be
+  retyped.

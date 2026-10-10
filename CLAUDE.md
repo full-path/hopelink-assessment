@@ -442,7 +442,12 @@ question/capability links, and comments whose target is not in the displayed dat
    `/src/data/capabilities.json`. It warns (without failing) when a question/capability map entry
    matches no question ID — the map is allowed to lag a question edit by one commit.
 3. Vite builds static assets.
-4. GitHub Actions workflow builds on push to `main` and deploys to GitHub Pages.
+4. GitHub Actions workflow builds on push to `main` or `testing` and deploys one Pages site holding
+   both: `main` at the root (production) and `testing` under `/testing/`. Every run builds both
+   branches, because a deploy replaces the whole site. The testing build reads its own
+   `TESTING_`-prefixed variables and never production's, so testers cannot post to the production
+   comment store or read the production sheet by omission. The `github-pages` environment must
+   allow the `testing` branch to deploy (README, "Deployment").
 5. Updating the intake comparison going forward means editing the live sheet, where one is
    configured — no build involved — or otherwise editing the CSVs and re-running the build.
    The in-app upload (Section 5, requirement 6) is a session-only preview for trying a

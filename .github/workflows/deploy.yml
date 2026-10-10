@@ -1,8 +1,17 @@
 name: Deploy to GitHub Pages
 
+# One Pages site, two builds: `main` at the site root (production) and `testing` under
+# /testing/. A repository has a single Pages site and every deploy replaces all of it, so each
+# run builds BOTH branches and deploys them together — whichever branch was pushed. Deploying
+# only the pushed branch would wipe the other site.
+#
+# The app works from a subfolder unchanged because Vite's `base` is relative (vite.config.ts).
+#
+# The testing branch is optional: until it exists, runs deploy production alone.
+
 on:
   push:
-    branches: [main]
+    branches: [main, testing]
   workflow_dispatch:
 
 permissions:
@@ -11,38 +20,98 @@ permissions:
   id-token: write
 
 concurrency:
+  # Every run deploys both sites from their branches' current heads, so the newest run is always
+  # the complete one and an in-flight older run can safely be cancelled.
   group: pages
   cancel-in-progress: true
 
 jobs:
   build:
+    name: Build ${{ matrix.site }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - site: production
+            ref: main
+            # Repository *variables*, not secrets: these URLs are compiled into the client bundle
+            # in plaintext, so calling them secrets would imply a protection that does not exist.
+            # Unset is valid — commenting is absent, and the site shows the committed snapshot.
+            # See apps-script/README.md and README "Live data from a Google Sheet".
+            comments_endpoint: ${{ vars.COMMENTS_ENDPOINT }}
+            sheet_published_url: ${{ vars.SHEET_PUBLISHED_URL }}
+          - site: testing
+            ref: testing
+            # Separate variables, never a fallback to production's: a testing site posting to the
+            # production comment store, or reading the production sheet, is exactly what this
+            # split exists to prevent. Unset means no comments and the snapshot only.
+            comments_endpoint: ${{ vars.TESTING_COMMENTS_ENDPOINT }}
+            sheet_published_url: ${{ vars.TESTING_SHEET_PUBLISHED_URL }}
     steps:
+      - name: Check that the branch exists
+        id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/branches/${{ matrix.ref }}" --silent; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No '${{ matrix.ref }}' branch; the ${{ matrix.site }} site is skipped."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.branch.outputs.exists == 'true'
+        with:
+          ref: ${{ matrix.ref }}
       - uses: actions/setup-node@v4
+        if: steps.branch.outputs.exists == 'true'
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+      - if: steps.branch.outputs.exists == 'true'
+        run: npm ci
+      - if: steps.branch.outputs.exists == 'true'
+        run: npm run lint
+      - if: steps.branch.outputs.exists == 'true'
+        run: npm test
+      - if: steps.branch.outputs.exists == 'true'
+        run: npm run build
         env:
-          # A repository *variable*, not a secret: this URL is compiled into the client bundle in
-          # plaintext, so calling it a secret would imply a protection that does not exist.
-          # Unset is a valid state — the site builds and deploys with commenting disabled.
-          # See apps-script/README.md.
-          VITE_COMMENTS_ENDPOINT: ${{ vars.COMMENTS_ENDPOINT }}
-          # The live Google Sheet's "Publish to web" link — also a variable, also public by
-          # construction. Its tabs are identified in src/sheetTabs.ts. Unset, the site shows the
-          # committed snapshot only. See README "Live data from a Google Sheet".
-          VITE_SHEET_PUBLISHED_URL: ${{ vars.SHEET_PUBLISHED_URL }}
+          VITE_COMMENTS_ENDPOINT: ${{ matrix.comments_endpoint }}
+          VITE_SHEET_PUBLISHED_URL: ${{ matrix.sheet_published_url }}
+      - uses: actions/upload-artifact@v4
+        if: steps.branch.outputs.exists == 'true'
+        with:
+          name: site-${{ matrix.site }}
+          path: dist
+          retention-days: 1
+
+  assemble:
+    # A red build on either branch stops the deploy, so neither site is ever replaced by a
+    # half-built pair. Production keeps serving its last good deploy meanwhile.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: site-*
+          path: builds
+      - name: Put production at the root and testing under /testing/
+        run: |
+          mv builds/site-production site
+          if [ -d builds/site-testing ]; then
+            mv builds/site-testing site/testing
+          else
+            echo "::notice::No testing build; deploying production only."
+          fi
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
-    needs: build
+    needs: assemble
     runs-on: ubuntu-latest
     environment:
       name: github-pages
