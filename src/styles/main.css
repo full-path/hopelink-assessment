@@ -212,6 +212,23 @@ body {
   border-top: 1px solid var(--color-border);
 }
 
+/* Groups sit above the agencies they toggle, set apart so they read as shortcuts, not agencies. */
+.filters__group-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.filters__sublabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
 .filters__checkbox {
   display: flex;
   align-items: center;

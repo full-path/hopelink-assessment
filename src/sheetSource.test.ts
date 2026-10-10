@@ -56,7 +56,7 @@ describe("readSheetConfig", () => {
   it("builds one CSV URL per tab from the published URL and the gids", () => {
     const config = readSheetConfig({ VITE_SHEET_PUBLISHED_URL: PUBLISHED }, wired);
     expect(config.status === "enabled" && config.urls.requirements).toBe(
-      `${PUBLISHED}?gid=200&single=true&output=csv`,
+      `${PUBLISHED}?gid=${String(wired.requirements.gid)}&single=true&output=csv`,
     );
   });
 

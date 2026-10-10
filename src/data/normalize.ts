@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import type { Agency, AgencyRequirement, IntakeQuestion, NormalizedData } from "./types";
+import type { AgencyRequirement, IntakeQuestion, NormalizedData, Roster } from "./types";
 import { createAgencyResolver } from "./agencies";
 import { cell, dropdown, ID_PATTERN, parseTab, type Row } from "./tabs";
 import { normalizeWhitespace } from "./text";
@@ -85,11 +85,13 @@ function requirementEntries(row: Row, agencyId: string, where: string): AgencyRe
   return entries;
 }
 
-export function normalizeQuestions(
-  sources: QuestionSourceTexts,
-  agencies: Agency[],
-): NormalizedData {
-  const resolveAgencyId = createAgencyResolver(agencies);
+/**
+ * Normalizes the question tabs against a roster. The roster passes straight through to the
+ * result, so a caller that already holds a `NormalizedData` (the upload preview, re-using the
+ * published roster) can hand it in as is.
+ */
+export function normalizeQuestions(sources: QuestionSourceTexts, roster: Roster): NormalizedData {
+  const resolveAgencyId = createAgencyResolver(roster.agencies);
 
   // --- Questions -----------------------------------------------------------------------------
   const questions: IntakeQuestion[] = [];
@@ -170,7 +172,7 @@ export function normalizeQuestions(
     }
   });
 
-  return { agencies, questions };
+  return { agencies: roster.agencies, agencyGroups: roster.agencyGroups, questions };
 }
 
 /**

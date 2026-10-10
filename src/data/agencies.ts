@@ -1,4 +1,4 @@
-import type { Agency, AgencyKind } from "./types";
+import type { Agency, AgencyGroup, AgencyKind } from "./types";
 import { cell, dropdown, parseTab } from "./tabs";
 import { normalizeWhitespace, slugify } from "./text";
 
@@ -124,4 +124,47 @@ export function createAgencyResolver(agencies: Agency[]): AgencyResolver {
     }
     return id;
   };
+}
+
+const GROUP_COLUMNS = ["Group", "Agency"];
+
+/**
+ * The Agency groups tab → named groups of agencies. One row per membership, the same long form
+ * as Requirements, so an agency can join any number of groups without a multi-value cell.
+ *
+ * Groups are listed in the order they first appear; members are listed in roster order, not row
+ * order, so a group reads the same way however its rows were entered. Agency names resolve
+ * through the roster, aliases included.
+ */
+export function parseAgencyGroups(csvText: string, agencies: Agency[]): AgencyGroup[] {
+  const resolveAgencyId = createAgencyResolver(agencies);
+  const members = new Map<string, { name: string; agencyIds: Set<string> }>();
+
+  parseTab(csvText, "Agency groups", GROUP_COLUMNS).forEach((row, index) => {
+    const where = `Agency groups tab, row ${String(index + 2)}`;
+    const name = cell(row, "Group");
+    if (!name) throw new Error(`${where} has no Group.`);
+    const agencyName = cell(row, "Agency");
+    if (!agencyName) throw new Error(`${where} has no Agency.`);
+
+    const id = slugify(name);
+    const group = members.get(id) ?? { name, agencyIds: new Set<string>() };
+    if (group.name !== name) {
+      throw new Error(
+        `${where}: "${name}" and "${group.name}" would be the same group; spell them the same.`,
+      );
+    }
+    const agencyId = resolveAgencyId(agencyName);
+    if (group.agencyIds.has(agencyId)) {
+      throw new Error(`${where}: "${agencyName}" is already in "${name}".`);
+    }
+    group.agencyIds.add(agencyId);
+    members.set(id, group);
+  });
+
+  return [...members].map(([id, group]) => ({
+    id,
+    name: group.name,
+    agencyIds: agencies.filter((a) => group.agencyIds.has(a.id)).map((a) => a.id),
+  }));
 }

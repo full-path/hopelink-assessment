@@ -43,8 +43,24 @@ export interface Agency {
   capabilitySurvey: "returned" | "not_surveyed";
 }
 
-export interface NormalizedData {
+/**
+ * A named set of agencies that Hopelink staff define (e.g. "Paratransit providers"), so a reader
+ * can show or hide them together. Purely a viewing aid: groups carry no analytical meaning, and
+ * an agency may belong to any number of them.
+ */
+export interface AgencyGroup {
+  id: string; // slug of the name; nothing persistent is keyed by it
+  name: string;
+  agencyIds: string[]; // in roster order, so a group always lists its members the same way
+}
+
+/** Everything about agencies, independent of the questions: who they are and how staff group them. */
+export interface Roster {
   agencies: Agency[];
+  agencyGroups: AgencyGroup[];
+}
+
+export interface NormalizedData extends Roster {
   questions: IntakeQuestion[];
 }
 

@@ -103,7 +103,7 @@ async function handleUpload(files: File[]): Promise<void> {
     const uploaded = await Promise.all(
       files.map(async (file) => ({ name: file.name, text: await file.text() })),
     );
-    setData(normalizeQuestions(assembleQuestionUpload(uploaded), base.dataset.data.agencies), {
+    setData(normalizeQuestions(assembleQuestionUpload(uploaded), base.dataset.data), {
       kind: "uploaded",
       fileName: uploaded.map((file) => file.name).join(", "),
     });
@@ -318,7 +318,7 @@ function renderQuestionsPanel(
     "div",
     {},
     renderCommentOrphanNotice(comments.resolved.orphansByKind.get("question") ?? [], "question"),
-    renderFilters(intakeAgencies, state, (next) => {
+    renderFilters(intakeAgencies, data.agencyGroups, state, (next) => {
       state = next;
       render();
     }),

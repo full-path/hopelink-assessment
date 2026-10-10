@@ -61,14 +61,14 @@ starts the Vite dev server.
 ## Updating the data
 
 There is no in-app _editing_ UI by design (see CLAUDE.md, Section 10). The editing surface is
-either the Google Sheet or the CSVs, which have the same seven tabs and columns.
+either the Google Sheet or the CSVs, which have the same eight tabs and columns.
 
 **With a live sheet configured** (the normal case once it is set up): edit the sheet, following
 its private Instructions tab, and check its Checks tab reads 0 throughout. Readers see the change
 on their next page load, within a few minutes (see "How fresh is it?" below). Every so often a
 developer refreshes the snapshot:
 
-1. `npm run pull-sheet` — copies the seven tabs into `/data`, refusing if the sheet would not load.
+1. `npm run pull-sheet` — copies the eight tabs into `/data`, refusing if the sheet would not load.
 2. `npm run build-data` — regenerates the JSON in `src/data/`.
 3. Review the diff and commit both. The git history is the audit trail of what changed in the sheet;
    the sheet's own version history covers the edits in between.
@@ -89,6 +89,7 @@ say — without the app caring.
 | File / tab                                                       | Columns                                                          | Notes                                                                                                                                                                                                                                                                                                                           |
 | ---------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `data/agencies.csv` — **Agencies**                               | `Agency`, `Kind`, `Aliases`, `Capability survey`, `Note`         | The roster; see "The agency roster" below.                                                                                                                                                                                                                                                                                      |
+| `data/agency-groups.csv` — **Agency groups**                     | `Group`, `Agency`, `Note`                                        | Named groups of agencies that readers can show or hide as a unit (e.g. "Paratransit providers"). One row per agency in a group; an agency can be in any number of groups. See "Agency groups" below.                                                                                                                            |
 | `data/questions.csv` — **Questions**                             | `ID`, `Question`, `Data Quality Notes`                           | One row per unified question, in display order. **`ID` is assigned once and never changed**: comments on the site are attached to it. Rewording `Question` is safe. `Data Quality Notes` is shown in the app beside the question; use it to flag things a human should double-check.                                            |
 | `data/requirements.csv` — **Requirements**                       | `Question ID`, `Agency`, `Asked`, `Verification`, `Proof detail` | One row per question and agency that asks it, and never two. `Asked` is `Required`, `Optional`, or `Unknown` when the agency has not said — never blank. `Verification` is `Self-attestation`, `Proof required`, or blank; an `Unknown` row needs one. `Proof detail` (what documents are accepted) only with `Proof required`. |
 | `data/question-links.csv` — **Question links**                   | `Question ID`, `Leads to`, `Note`                                | One row per link, from the question asked first to the one it leads to. The app shows it from both ends. A link to an ID that does not exist is shown as unresolved, not dropped (CLAUDE.md §11 item 2).                                                                                                                        |
@@ -114,6 +115,27 @@ loader and the upload preview, rather than being silently mis-parsed.
 | `Note`              | Optional, for editors only; not shown in the app. Records why a row is the way it is.                                                                                                                                                                                          |
 
 To add an agency, add a row here first, then pick it in the other tabs.
+
+### Agency groups
+
+`data/agency-groups.csv` (the **Agency groups** tab) lets Hopelink staff define any number of
+named groups — "Paratransit providers", "ORCA programs", "King County" — that readers can show or
+hide together in the Intake questions view's agency filter.
+
+- **One row per membership**: `Group` (the name, spelled the same on every row), `Agency` (picked
+  from the roster) and an optional editors-only `Note`. An agency can be in several groups; listing
+  it twice in one group is an error, as are two spellings of one group name.
+- **In the filter**, each group is a checkbox above the agencies. Ticking it ticks all its members;
+  unticking unticks them all. Its own state is read from its members — checked when all are
+  selected, a dash (indeterminate) when only some are — so a group and its members never disagree.
+  When the selection is exactly one group, the filter's summary names it.
+- Groups are a viewing aid only: they do not change any analysis. A member with no intake
+  questions has no checkbox and is not counted in the filter, and a group with no such members is
+  not offered.
+
+The committed file has two starter groups for staff to review: "Paratransit providers" (Access
+Paratransit and Pierce Transit SHUTTLE, the two whose paratransit status the data states) and
+"ORCA programs".
 
 ### Previewing replacement CSVs in the app
 
@@ -151,7 +173,7 @@ has.
 ### How it behaves
 
 - **The page never waits for the sheet.** It paints immediately from the snapshot, then fetches
-  the seven tabs in the background. Page load time is unchanged; the sheet adds roughly 0.5–2
+  the eight tabs in the background. Page load time is unchanged; the sheet adds roughly 0.5–2
   seconds _after_ first paint, and about 10 KB of transfer.
 - **If the sheet matches the snapshot**, only the status line under the header changes.
 - **If it differs and the reader is idle**, the page switches to it at once, keeping their filters.
@@ -177,6 +199,7 @@ minutes, not instantly. Nothing in the app can shorten that.
    | Tab name                  | Import                             |
    | ------------------------- | ---------------------------------- |
    | `Agencies`                | `data/agencies.csv`                |
+   | `Agency groups`           | `data/agency-groups.csv`           |
    | `Questions`               | `data/questions.csv`               |
    | `Requirements`            | `data/requirements.csv`            |
    | `Question links`          | `data/question-links.csv`          |
@@ -192,7 +215,7 @@ minutes, not instantly. Nothing in the app can shorten that.
 3. **Wire up the tabs.** Paste that block into `src/sheetTabs.ts` and commit it. The gids it
    contains identify the tabs and never change while the spreadsheet is in use.
 
-4. **Publish the seven data tabs.** File → Share → Publish to web → under "Link", choose the data
+4. **Publish the eight data tabs.** File → Share → Publish to web → under "Link", choose the data
    tabs only (**not** "Entire document", and not Checks or Instructions), format **Comma-separated
    values (.csv)**, and publish. Under "Published content and settings" leave **Automatically
    republish when changes are made** ticked. Copy the link — it looks like
@@ -298,7 +321,7 @@ Covers the part of the system most likely to silently produce wrong output:
   with proof required); links derived in both directions, including a link to a missing question,
   which must be flagged rather than dropped; capability answers and survey status; recognising
   uploaded tabs by header; and question/capability link resolution against a changed question set.
-- **Live sheet** (`src/sheetSource.test.ts`, `src/data/dataset.test.ts`) — that the seven tabs are
+- **Live sheet** (`src/sheetSource.test.ts`, `src/data/dataset.test.ts`) — that the eight tabs are
   validated as one dataset against the sheet's own roster, that each failure (unpublished tab, HTTP
   error, timeout, invalid data) names the tab and rejects the whole sheet, and that the committed
   JSON matches the committed CSVs.
@@ -325,7 +348,7 @@ Covers the part of the system most likely to silently produce wrong output:
 - **Shared normalization layer.** All CSV parsing and cleanup lives under `src/data/`, deliberately
   free of Node imports so it runs in three places: `scripts/build-data.ts` (a thin CLI wrapper that
   generates the committed JSON), the live sheet loader (`src/sheetSource.ts`), and the in-browser
-  upload preview in `src/main.ts`. A whole dataset — all seven tabs — goes through one function,
+  upload preview in `src/main.ts`. A whole dataset — all eight tabs — goes through one function,
   `normalizeDataset` in `src/data/dataset.ts`, so the sheet and the build cannot disagree about
   what is valid. This is why
   `papaparse` is a runtime dependency shipped in the client bundle rather than a dev-only tool.

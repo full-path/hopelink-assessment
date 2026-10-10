@@ -28,7 +28,7 @@ not a preference.
 
 ## 2. Data Sources
 
-Seven CSVs in `/data`, one per tab of the Google Sheet, all hand-editable. Where a live sheet is
+Eight CSVs in `/data`, one per tab of the Google Sheet, all hand-editable. Where a live sheet is
 configured (Section 5, requirement 9) it is the working source of record and these files are its
 committed snapshot — refreshed by `npm run pull-sheet`, and what the page paints first and falls
 back to. With no sheet configured they are the source of record outright.
@@ -40,6 +40,7 @@ dropdowns. Other tabs refer to questions and capabilities by ID and to agencies 
 
 | File / tab | Columns | Contents |
 |---|---|---|
+| `agency-groups.csv` — Agency groups | `Group`, `Agency`, `Note` | Named groups of agencies, one row per membership, that readers can show or hide as a unit (Section 5, requirement 3). Many-to-many: a separate tab rather than a column on Agencies, because a column would hold several group names in one cell. A viewing aid only — no analysis reads it. |
 | `agencies.csv` — Agencies | `Agency`, `Kind`, `Aliases`, `Capability survey`, `Note` | The agency roster. Every agency name anywhere must resolve against it (name or `;`-separated alias). `Capability survey` (`Returned` / blank) states whether the agency returned the capability survey, rather than leaving it inferred. Data rather than code so staff can add an agency without a developer. |
 | `questions.csv` — Questions | `ID`, `Question`, `Data Quality Notes` | The intake questions, in display order. `ID` is assigned once and never changed; the original ids were the slugs of the original text and were kept, so existing comments stayed attached. |
 | `requirements.csv` — Requirements | `Question ID`, `Agency`, `Asked`, `Verification`, `Proof detail` | One row per (question, agency), never two. `Asked` ∈ Required / Optional / Unknown, never blank; `Verification` ∈ Self-attestation / Proof required / blank, required when `Asked` is Unknown. These are two separate facts — is it mandatory, and how is the answer checked — that the export stored as four columns of one list, which is what allowed contradictions. |
@@ -112,7 +113,7 @@ None of this should be handled with defensive parsing logic scattered through th
 It lives once, in the shared normalization layer under `src/data/` — `normalize.ts` for the
 question tabs, `normalizeCapabilities.ts` for the capability tabs, with the roster parser and
 resolver (`agencies.ts`), the tab helpers (`tabs.ts`: header checks, dropdown matching, the ID
-rule) and string helpers (`text.ts`) shared between them, and `dataset.ts` normalizing all seven
+rule) and string helpers (`text.ts`) shared between them, and `dataset.ts` normalizing all eight
 tabs as one unit. Every path into the app — build script, live sheet and in-browser upload alike —
 goes through those modules. UI code should never see a raw CSV row. Every rejection names the tab
 and row, because the person reading it is a staff member looking at the sheet.
@@ -129,6 +130,21 @@ interface AgencyRequirement {
   level: RequirementLevel;
   proofDetail?: string;    // populated only when level === "proof_required"
   askedUnknown?: true;     // on a verification entry: the agency never said required vs optional
+}
+
+interface AgencyGroup {
+  id: string;              // slug of the name; nothing persistent is keyed by it
+  name: string;
+  agencyIds: string[];     // in roster order
+}
+
+interface Roster {
+  agencies: Agency[];
+  agencyGroups: AgencyGroup[];
+}
+
+interface NormalizedData extends Roster {
+  questions: IntakeQuestion[];
 }
 
 interface IntakeQuestion {
@@ -273,6 +289,13 @@ question/capability links, and comments whose target is not in the displayed dat
    header badge: the collapsed row has room for one number, and a verdict that needs a sentence
    of explanation to be fair ("the capability varies and most providers don't ask") belongs where
    that sentence can sit next to it.
+
+   **Agency groups** (`agency-groups.csv`) appear in the agency filter as checkboxes that tick or
+   untick all their members at once. They are shortcuts over the same selection, not a second
+   kind of filter: there is no group state, a group's checkbox is derived from its members
+   (checked when all are selected, indeterminate when some are), and the selection stored is still
+   just agency ids in roster order — so the strip-ordering guarantee above is untouched. Only
+   members with intake data count; a group with none is not offered.
 4. Visual indicator distinguishing questions with resolved upstream/downstream chains from those
    with unresolved free-text references.
 5. A summary view answering the core stakeholder question directly: for a given candidate
@@ -315,7 +338,7 @@ question/capability links, and comments whose target is not in the displayed dat
    comments are an enhancement and may never delay, block, or blank it.
 9. **Live data from a published Google Sheet**, so staff can update the data and have it visible
    without a rebuild. Optional at build time: `VITE_SHEET_PUBLISHED_URL` is the document's
-   "Publish to web" link, and `src/sheetTabs.ts` maps each of the seven tabs to its `gid` (which
+   "Publish to web" link, and `src/sheetTabs.ts` maps each of the eight tabs to its `gid` (which
    `apps-script/SheetSetup.gs` prints). Unset URL = snapshot only. Constraints, each of which is
    easy to break:
 
@@ -337,7 +360,7 @@ question/capability links, and comments whose target is not in the displayed dat
      comment client.
    - **Freshness is bounded by Google, not by the app.** Published output is cached for about five
      minutes on Google's side.
-   - **Only the seven data tabs are published.** The sheet's Checks and Instructions tabs are for
+   - **Only the eight data tabs are published.** The sheet's Checks and Instructions tabs are for
      editors; "Entire document" would publish them too.
 
 ## 6. Non-Functional Requirements / Code Quality Standards
@@ -410,7 +433,7 @@ question/capability links, and comments whose target is not in the displayed dat
 
 ## 8. Build & Deployment Pipeline
 
-1. The seven CSVs (Section 2) checked into `/data/` — the sources of record, or the committed
+1. The eight CSVs (Section 2) checked into `/data/` — the sources of record, or the committed
    snapshot of the live sheet where one is configured (`npm run pull-sheet` refreshes them).
 2. `scripts/build-data.ts` runs at build time, outputs `/src/data/questions.json` and
    `/src/data/capabilities.json`. It warns (without failing) when a question/capability map entry
@@ -428,6 +451,7 @@ question/capability links, and comments whose target is not in the displayed dat
 ```
 /data/by-question.csv                 # original agency-survey export + deliberate additions; not read
 /data/agencies.csv                    # tab: the agency roster, kinds, aliases, capability survey
+/data/agency-groups.csv               # tab: named groups of agencies, one row per membership
 /data/questions.csv                   # tab: questions, with stable IDs
 /data/requirements.csv                # tab: one row per (question, agency): Asked, Verification, proof
 /data/question-links.csv              # tab: one row per link between questions
@@ -440,7 +464,7 @@ question/capability links, and comments whose target is not in the displayed dat
 /src/data/tabs.ts                     # tab reading shared by all normalizers: columns, dropdowns, ID rule
 /src/data/agencies.ts                 # agency roster parser + alias resolution
 /src/data/agencies.test.ts
-/src/data/dataset.ts                  # all seven tabs -> one dataset; the build and the live sheet both call it
+/src/data/dataset.ts                  # all eight tabs -> one dataset; the build and the live sheet both call it
 /src/data/dataset.test.ts
 /src/data/normalize.ts                # question tabs:   CSV text -> NormalizedData (+ upload tab detection)
 /src/data/normalizeCapabilities.ts    # capability tabs: CSV text -> CapabilityData
@@ -569,7 +593,7 @@ unless corrected:
       URL, and the URLs ship in the bundle. This sharpens item 3: the data was already public on
       the deployed site, but staff now edit it in a public document, and should know that.
     - *"Publish to web" over other endpoints.* Chosen because it returns exactly what a download
-      would and can expose only the seven data tabs. Its cost is the ~5-minute cache; the `gviz`
+      would and can expose only the eight data tabs. Its cost is the ~5-minute cache; the `gviz`
       endpoint is fresher but guesses column types and can silently blank cells, and `export`
       is not reliably readable cross-origin from a browser.
     - *Staff own the roster, including `Kind`.* Item 9's classification is now editable by
@@ -600,3 +624,8 @@ unless corrected:
       the export recorded 17 on one question only (e.g. `Accessibility needs` now lists the five
       questions that name it as upstream). The layout working as intended, not new data; if a link
       should not exist, delete its row.
+16. **The two starter agency groups are a proposal.** "Paratransit providers" holds only Access
+    Paratransit and Pierce Transit SHUTTLE, because those are the only agencies whose paratransit
+    status the data states; others may belong. "ORCA programs" is every roster entry named ORCA.
+    Hopelink staff should review both and add the groups they actually want before stakeholders
+    see the filter.

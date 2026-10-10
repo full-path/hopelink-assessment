@@ -1,5 +1,5 @@
 import { h } from "../dom";
-import type { Agency, RequirementLevel } from "../data/types";
+import type { Agency, AgencyGroup, RequirementLevel } from "../data/types";
 
 export interface FilterState {
   /**
@@ -45,18 +45,67 @@ export const ASKED_UNKNOWN_LABEL = "not stated whether required or optional";
 
 export function renderFilters(
   agencies: Agency[],
+  agencyGroups: AgencyGroup[],
   state: FilterState,
   onChange: (next: FilterState) => void,
 ): HTMLElement {
   const selected = new Set(state.agencyIds);
 
   /** Re-derives the selection from the roster, so the stored array never depends on click order. */
-  const selectionWith = (agencyId: string, checked: boolean): string[] => {
+  const selectionWith = (agencyIds: string[], checked: boolean): string[] => {
     const next = new Set(selected);
-    if (checked) next.add(agencyId);
-    else next.delete(agencyId);
+    for (const agencyId of agencyIds) {
+      if (checked) next.add(agencyId);
+      else next.delete(agencyId);
+    }
     return agencies.filter((agency) => next.has(agency.id)).map((agency) => agency.id);
   };
+
+  /**
+   * Groups as they apply to this list: only members that appear in it (a group may include an
+   * agency with no intake data, which has no checkbox here), and only groups left with any.
+   */
+  const listed = new Set(agencies.map((agency) => agency.id));
+  const groups = agencyGroups
+    .map((group) => ({ ...group, agencyIds: group.agencyIds.filter((id) => listed.has(id)) }))
+    .filter((group) => group.agencyIds.length > 0);
+
+  /**
+   * A group is a shortcut over the same selection, not a second kind of filter: ticking it ticks
+   * every member, unticking it unticks every member, and its own state is read back from the
+   * members — checked when all are selected, indeterminate when some are. So a group and its
+   * members can never disagree, and there is nothing extra to keep in sync or reset.
+   */
+  const groupToggles = groups.map((group) => {
+    const inputId = `filter-group-${group.id}`;
+    const selectedCount = group.agencyIds.filter((id) => selected.has(id)).length;
+    const input = h("input", {
+      type: "checkbox",
+      id: inputId,
+      value: group.id,
+      checked: selectedCount === group.agencyIds.length,
+      onChange: (e) => {
+        onChange({
+          ...state,
+          agencyIds: selectionWith(group.agencyIds, (e.target as HTMLInputElement).checked),
+        });
+      },
+    });
+    // Only settable as a property; assistive technology reads it as "mixed".
+    input.indeterminate = selectedCount > 0 && selectedCount < group.agencyIds.length;
+    return h(
+      "div",
+      { className: "filters__checkbox" },
+      input,
+      h("label", { for: inputId }, `${group.name} (${String(group.agencyIds.length)})`),
+    );
+  });
+
+  /** The group whose members are exactly the selection, if any — named in the summary. */
+  const matchingGroup = groups.find(
+    (group) =>
+      group.agencyIds.length === selected.size && group.agencyIds.every((id) => selected.has(id)),
+  );
 
   const agencyToggles = agencies.map((agency) => {
     const inputId = `filter-agency-${agency.id}`;
@@ -71,7 +120,7 @@ export function renderFilters(
         onChange: (e) => {
           onChange({
             ...state,
-            agencyIds: selectionWith(agency.id, (e.target as HTMLInputElement).checked),
+            agencyIds: selectionWith([agency.id], (e.target as HTMLInputElement).checked),
           });
         },
       }),
@@ -91,8 +140,22 @@ export function renderFilters(
       {},
       selected.size === 0
         ? `Agency: all ${String(agencies.length)}`
-        : `Agency: ${String(selected.size)} of ${String(agencies.length)} selected`,
+        : matchingGroup
+          ? `Agency: ${matchingGroup.name} (${String(selected.size)} of ${String(agencies.length)})`
+          : `Agency: ${String(selected.size)} of ${String(agencies.length)} selected`,
     ),
+    groupToggles.length > 0
+      ? h(
+          "div",
+          {
+            className: "filters__group-list",
+            role: "group",
+            "aria-labelledby": "filter-groups-label",
+          },
+          h("span", { className: "filters__sublabel", id: "filter-groups-label" }, "Groups"),
+          ...groupToggles,
+        )
+      : undefined,
     h(
       "div",
       { className: "filters__agency-list", role: "group", "aria-label": "Agencies" },

@@ -141,7 +141,7 @@ Everything happens in the spreadsheet:
 
 ## Data sheet setup (`SheetSetup.gs`)
 
-The data spreadsheet holds the seven tabs the site reads (README, "Live data from a Google
+The data spreadsheet holds the eight tabs the site reads (README, "Live data from a Google
 Sheet"). It is edited centrally by Hopelink staff, so the aim of this script is that mistakes are
 caught in the sheet, by the person making them, rather than surfacing as an error on the site.
 
@@ -162,12 +162,12 @@ pasted over the dropdowns.
   attached to it.
 - **Red highlighting** of rows the site would reject: a second Requirements row for the same
   question and agency, a row with no Asked, an "Unknown" Asked with no Verification, proof detail without "Proof
-  required", a question linked to itself, a capability answer from an agency not marked as having
+  required", a question linked to itself, an agency listed twice in one group, a capability answer from an agency not marked as having
   returned the survey.
 - **A Checks tab** counting each problem the site checks for. Every count should be 0.
 - **An Instructions tab** with how-tos for staff.
 
-Checks and Instructions are for editors: **do not publish them.** Publish only the seven data tabs.
+Checks and Instructions are for editors: **do not publish them.** Publish only the eight data tabs.
 
 **Its last step** logs a `SHEET_TABS` block (View → Logs, or the execution log) containing this
 spreadsheet's tab gids. Paste it into `src/sheetTabs.ts`.

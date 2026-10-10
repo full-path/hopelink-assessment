@@ -14,6 +14,7 @@ import type { SourceTexts } from "./data/dataset";
  */
 export const SHEET_TABS: Record<keyof SourceTexts, { name: string; gid: number | null }> = {
   agencies: { name: "Agencies", gid: null },
+  agencyGroups: { name: "Agency groups", gid: null },
   questions: { name: "Questions", gid: null },
   requirements: { name: "Requirements", gid: null },
   questionLinks: { name: "Question links", gid: null },

@@ -9,6 +9,7 @@ const ROSTER = parseAgencyRoster(
   readFileSync(new URL("../../data/agencies.csv", import.meta.url), "utf-8"),
 );
 const resolveAgencyId = createAgencyResolver(ROSTER);
+const roster = { agencies: ROSTER, agencyGroups: [] };
 
 const QUESTIONS_HEADER = "ID,Question,Data Quality Notes";
 const REQUIREMENTS_HEADER = "Question ID,Agency,Asked,Verification,Proof detail";
@@ -27,7 +28,7 @@ function tabs(
   };
 }
 
-const normalize = (sources: QuestionSourceTexts) => normalizeQuestions(sources, ROSTER);
+const normalize = (sources: QuestionSourceTexts) => normalizeQuestions(sources, roster);
 const find = (sources: QuestionSourceTexts, id: string) =>
   normalize(sources).questions.find((q) => q.id === id);
 
@@ -90,7 +91,7 @@ describe("Questions tab", () => {
   });
 
   it("names the tab when a required column is missing", () => {
-    expect(() => normalizeQuestions({ ...tabs(), questions: "Question\nPhone" }, ROSTER)).toThrow(
+    expect(() => normalizeQuestions({ ...tabs(), questions: "Question\nPhone" }, roster)).toThrow(
       /Questions tab is missing expected column\(s\): "ID"/,
     );
   });

@@ -19,16 +19,17 @@
  * agencies.ts). The app remains the authority: if they ever disagree, the app's error wins.
  *
  * It does NOT publish anything. Publishing is done by hand (README, "Live data from a Google
- * Sheet"), and must cover the seven data tabs only — never Checks or Instructions.
+ * Sheet"), and must cover the eight data tabs only — never Checks or Instructions.
  */
 
-/** The seven data tabs, their columns in order, and their role name in src/sheetTabs.ts. */
+/** The eight data tabs, their columns in order, and their role name in src/sheetTabs.ts. */
 var TABS = [
   {
     role: "agencies",
     name: "Agencies",
     headers: ["Agency", "Kind", "Aliases", "Capability survey", "Note"],
   },
+  { role: "agencyGroups", name: "Agency groups", headers: ["Group", "Agency", "Note"] },
   { role: "questions", name: "Questions", headers: ["ID", "Question", "Data Quality Notes"] },
   {
     role: "requirements",
@@ -73,6 +74,7 @@ function setupSheet() {
   ss.setNamedRange("CapabilityIDs", column_(ss, "Capabilities", 1));
 
   setUpAgencies_(ss);
+  setUpAgencyGroups_(ss);
   setUpQuestions_(ss);
   setUpRequirements_(ss);
   setUpQuestionLinks_(ss);
@@ -90,6 +92,12 @@ function setupSheet() {
 function setUpAgencies_(ss) {
   list_(ss, "Agencies", 2, KINDS);
   list_(ss, "Agencies", 4, SURVEY);
+}
+
+function setUpAgencyGroups_(ss) {
+  fromRange_(ss, "Agency groups", 2, "AgencyNames");
+  // The same agency listed twice in one group.
+  highlight_(ss, "Agency groups", ['=AND($A2<>"", COUNTIFS($A:$A, $A2, $B:$B, $B2) > 1)']);
 }
 
 function setUpQuestions_(ss) {
@@ -146,6 +154,14 @@ function setUpCapabilityMap_(ss) {
  * round of edits is considered finished; the app shows the snapshot and an error otherwise.
  */
 var CHECKS = [
+  [
+    "Agency groups: agency not in the Agencies tab",
+    "=SUMPRODUCT(('Agency groups'!B2:B<>\"\")*(COUNTIF(Agencies!A2:A,'Agency groups'!B2:B)=0))",
+  ],
+  [
+    "Agency groups: an agency listed twice in one group",
+    "=SUMPRODUCT(('Agency groups'!A2:A<>\"\")*(COUNTIFS('Agency groups'!A2:A,'Agency groups'!A2:A,'Agency groups'!B2:B,'Agency groups'!B2:B)>1))",
+  ],
   [
     "Questions: duplicate IDs",
     '=SUMPRODUCT((Questions!A2:A<>"")*(COUNTIF(Questions!A2:A,Questions!A2:A)>1))',
@@ -230,7 +246,7 @@ function writeChecks_(ss) {
 var INSTRUCTIONS = [
   "How to edit this sheet",
   "",
-  "This tab and the Checks tab are private. The seven data tabs are published to the web and read by the Intake Explorer on every page load; an edit shows up there within about five minutes.",
+  "This tab and the Checks tab are private. The eight data tabs are published to the web and read by the Intake Explorer on every page load; an edit shows up there within about five minutes.",
   "Before finishing a round of edits, open the Checks tab: every count should be 0. If the site cannot use the sheet, it keeps showing its built-in copy and says why.",
   "",
   "Add a question: add a row to Questions with a new ID (lowercase words joined by hyphens, e.g. do-you-use-a-scooter) and the question text. Then add one row to Requirements for each agency that asks it.",
@@ -239,6 +255,7 @@ var INSTRUCTIONS = [
   "Link questions: one row in Question links, from the question that comes first to the one it leads to. The site shows the link from both ends.",
   "Add an agency: add a row to Agencies first, then pick it from the dropdowns elsewhere. Kind decides whether vehicle capabilities apply to it. Aliases are other spellings, separated by semicolons.",
   "Record a provider capability: mark the agency's Capability survey as Returned on the Agencies tab, then add a Provider capabilities row per answer. A missing row means unknown, never no. Put the agency's own wording (e.g. Depends on vehicle) in Agency's wording.",
+  "Group agencies: one row in Agency groups per agency in a group (e.g. Paratransit providers / Access Paratransit). Spell the group name the same on every row. Readers can then show or hide the whole group at once; an agency can be in any number of groups.",
   "Add a capability: add a row to Capabilities with a new ID and a label. Labels can be reworded freely; IDs cannot.",
   "",
   "Red cells mark rows the site will reject. Re-run setupSheet (Extensions → Apps Script) if the dropdowns or highlighting go missing.",

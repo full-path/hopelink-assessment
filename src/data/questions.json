@@ -171,6 +171,26 @@
       "capabilitySurvey": "not_surveyed"
     }
   ],
+  "agencyGroups": [
+    {
+      "id": "paratransit-providers",
+      "name": "Paratransit providers",
+      "agencyIds": [
+        "access-paratransit",
+        "pierce-transit-shuttle"
+      ]
+    },
+    {
+      "id": "orca-programs",
+      "name": "ORCA programs",
+      "agencyIds": [
+        "orca",
+        "orca-senior",
+        "orca-disabled",
+        "orca-lift"
+      ]
+    }
+  ],
   "questions": [
     {
       "id": "first-and-last",

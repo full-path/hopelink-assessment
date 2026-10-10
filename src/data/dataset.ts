@@ -1,5 +1,5 @@
 import type { CapabilityData, NormalizedData } from "./types";
-import { parseAgencyRoster } from "./agencies";
+import { parseAgencyGroups, parseAgencyRoster } from "./agencies";
 import { normalizeQuestions, type QuestionSourceTexts } from "./normalize";
 import { normalizeCapabilities, type CapabilitySourceTexts } from "./normalizeCapabilities";
 
@@ -11,17 +11,20 @@ import { normalizeCapabilities, type CapabilitySourceTexts } from "./normalizeCa
  * both through one function is what guarantees a sheet edit is held to exactly the standard a
  * build is: if this throws on the sheet, it would have failed the build too.
  *
- * The roster is parsed first because both normalizers resolve agency names against it.
+ * The roster (agencies and their groups) is parsed first because both normalizers resolve agency
+ * names against it.
  */
 
 /** The raw CSV text of each tab, keyed by role. The file/tab each comes from is the caller's concern. */
 export interface SourceTexts extends QuestionSourceTexts, CapabilitySourceTexts {
   agencies: string;
+  agencyGroups: string;
 }
 
 /** Every role, in the order tabs are listed to staff. */
 export const SOURCE_ROLES = [
   "agencies",
+  "agencyGroups",
   "questions",
   "requirements",
   "questionLinks",
@@ -33,6 +36,7 @@ export const SOURCE_ROLES = [
 /** Each role's snapshot file in `/data`, which `pull-sheet` writes and `build-data` reads. */
 export const SOURCE_FILES: Record<keyof SourceTexts, string> = {
   agencies: "agencies.csv",
+  agencyGroups: "agency-groups.csv",
   questions: "questions.csv",
   requirements: "requirements.csv",
   questionLinks: "question-links.csv",
@@ -48,8 +52,9 @@ export interface Dataset {
 
 export function normalizeDataset(sources: SourceTexts): Dataset {
   const agencies = parseAgencyRoster(sources.agencies);
+  const agencyGroups = parseAgencyGroups(sources.agencyGroups, agencies);
   return {
-    data: normalizeQuestions(sources, agencies),
+    data: normalizeQuestions(sources, { agencies, agencyGroups }),
     capabilities: normalizeCapabilities(sources, agencies),
   };
 }
